@@ -29,8 +29,11 @@ class StationClustering:
             GROUP BY dl.location_key, dl.source_location_id, dl.location_name, dl.city, dl.latitude, dl.longitude
             HAVING COUNT(fm.measurement_key) >= 10;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine)
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         return df
 
     @classmethod

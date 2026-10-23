@@ -25,8 +25,11 @@ class AnomalyDetector:
             JOIN dim_time dt ON dt.time_key = fm.time_key
             ORDER BY fm.location_key, dp.parameter_name, dt.datetime_utc;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine)
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         if df.empty:
             logger.info("Chua co du lieu trong fact_measurement de kiem tra bat thuong.")
             return df

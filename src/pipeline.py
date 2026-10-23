@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta
 import pandas as pd
 from typing import Optional
@@ -24,13 +25,19 @@ class OpenAQPipeline:
     def run_extract(
         self,
         target_date: Optional[str] = None,
-        max_locations: Optional[int] = 50,
+        max_locations: Optional[int] = 20,
         days_back: int = 1,
     ) -> dict:
-        now = datetime.utcnow()
-        date_str = target_date or now.strftime("%Y-%m-%d")
-        dt_to = now.isoformat()
-        dt_from = (now - timedelta(days=days_back)).isoformat()
+        if target_date:
+            target_dt = datetime.strptime(target_date, "%Y-%m-%d")
+            dt_to = (target_dt + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+            dt_from = (target_dt - timedelta(days=days_back - 1)).strftime("%Y-%m-%dT00:00:00Z")
+            date_str = target_date
+        else:
+            now = datetime.utcnow()
+            date_str = now.strftime("%Y-%m-%d")
+            dt_to = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+            dt_from = (now - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         year, month, day = date_str.split("-")
         logger.info(f"=== [PHASE 1: EXTRACT] Bat dau thu thap du lieu OpenAQ cho ngay {date_str} ===")
@@ -64,6 +71,7 @@ class OpenAQPipeline:
                 unit = param_info.get("units")
 
                 # Uu tien lay du lieu hourly precomputed vi on dinh va nhanh hon
+                time.sleep(0.15)
                 try:
                     records = self.client.get_sensor_hours(
                         sensor_id=sensor_id,
@@ -72,6 +80,12 @@ class OpenAQPipeline:
                         limit=100,
                         max_pages=2,
                     )
+                    if not records:
+                        records = self.client.get_sensor_hours(
+                            sensor_id=sensor_id,
+                            limit=100,
+                            max_pages=1,
+                        )
                 except Exception as e:
                     logger.warning(f"Khong the lay hourly data cho sensor {sensor_id}: {e}. Thu measurements raw...")
                     try:
@@ -82,16 +96,30 @@ class OpenAQPipeline:
                             limit=100,
                             max_pages=1,
                         )
+                        if not records:
+                            records = self.client.get_sensor_raw_measurements(
+                                sensor_id=sensor_id,
+                                limit=100,
+                                max_pages=1,
+                            )
                     except Exception as e2:
                         logger.warning(f"Bo qua sensor {sensor_id}: {e2}")
                         continue
 
                 for rec in records:
                     # Chuan hoa thoi gian theo format OpenAQ v3
-                    # OpenAQ v3 hours: { "datetime": {"utc": "...", "local": "..."}, "value": ... }
-                    dt_obj = rec.get("datetime", {})
-                    dt_utc = dt_obj.get("utc") if isinstance(dt_obj, dict) else rec.get("period", {}).get("datetimeFrom", {}).get("utc")
-                    dt_local = dt_obj.get("local") if isinstance(dt_obj, dict) else None
+                    # Neu la endpoint /hours: rec nam trong 'period' -> 'datetimeFrom' -> 'utc'
+                    # Neu la endpoint /measurements: rec nam trong 'datetime' -> 'utc'
+                    dt_utc = None
+                    dt_local = None
+                    if isinstance(rec.get("datetime"), dict):
+                        dt_utc = rec["datetime"].get("utc")
+                        dt_local = rec["datetime"].get("local")
+                    elif isinstance(rec.get("period"), dict):
+                        p_from = rec["period"].get("datetimeFrom", {})
+                        if isinstance(p_from, dict):
+                            dt_utc = p_from.get("utc")
+                            dt_local = p_from.get("local")
 
                     val = rec.get("value")
                     if dt_utc and val is not None:
@@ -170,10 +198,10 @@ class OpenAQPipeline:
             "fact_rows": fact_rows,
         }
 
-    def run_full_pipeline(self, target_date: Optional[str] = None) -> dict:
+    def run_full_pipeline(self, target_date: Optional[str] = None, max_locations: Optional[int] = 20) -> dict:
         date_str = target_date or datetime.utcnow().strftime("%Y-%m-%d")
         logger.info(f">>> KHOI DONG PIPELINE ETL OPENAQ NGAY {date_str} <<<")
-        extract_res = self.run_extract(target_date=date_str)
+        extract_res = self.run_extract(target_date=date_str, max_locations=max_locations)
         s3_processed_key = self.run_transform(extract_res["measurements_key"], target_date=date_str)
         load_res = self.run_load(s3_processed_key)
         return {

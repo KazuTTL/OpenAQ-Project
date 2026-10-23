@@ -28,8 +28,11 @@ class AirQualityForecaster:
             WHERE dp.parameter_name = %(param)s
             ORDER BY fm.location_key, dt.datetime_utc ASC;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine, params={"param": target_pollutant.lower()})
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn, params={"param": target_pollutant.lower()})
+        finally:
+            conn.close()
         return df
 
     @staticmethod

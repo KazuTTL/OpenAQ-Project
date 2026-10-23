@@ -26,8 +26,11 @@ class AirQualityStatistics:
             GROUP BY dl.city, dl.location_name, dp.parameter_name, dp.unit
             ORDER BY dl.city, dl.location_name, dp.parameter_name;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine)
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         logger.info(f"Da truy van thong ke mo ta: {len(df)} nhom ket qua.")
         return df
 
@@ -44,8 +47,11 @@ class AirQualityStatistics:
             GROUP BY dl.city, fm.pollution_category
             ORDER BY dl.city, percentage DESC;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine)
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         logger.info(f"Da truy van phan bo muc do o nhiem theo thanh pho: {len(df)} dong.")
         return df
 
@@ -65,7 +71,10 @@ class AirQualityStatistics:
             GROUP BY dl.location_name, dl.city
             ORDER BY average_aqi DESC;
         """
-        engine = DBConnector.get_engine()
-        df = pd.read_sql(query, engine)
+        conn = DBConnector.get_raw_connection()
+        try:
+            df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         logger.info(f"Da truy van bang xep hang tram theo muc do o nhiem: {len(df)} tram.")
         return df

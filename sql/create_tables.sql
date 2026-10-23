@@ -1,3 +1,5 @@
+\c openaq_dw;
+
 -- Script khoi tao Data Warehouse Schema cho he thong phan tich OpenAQ
 -- Mo hinh: Star Schema (1 Fact Table + 3 Dimension Tables + Staging Table)
 
