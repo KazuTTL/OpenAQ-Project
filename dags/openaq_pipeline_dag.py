@@ -46,6 +46,13 @@ def run_load_task(**kwargs):
     print("Ket qua Load:", load_res)
 
 
+def run_ml_analytics_task(**kwargs):
+    from src.analysis.analytics_runner import run_ml_analytics
+
+    analytics_res = run_ml_analytics()
+    print("Ket qua ML Analytics:", analytics_res)
+
+
 with DAG(
     dag_id="openaq_etl_daily_pipeline",
     default_args=default_args,
@@ -74,5 +81,11 @@ with DAG(
         provide_context=True,
     )
 
-    # Dependency flow: Extract -> Transform -> Load
-    extract_task >> transform_task >> load_task
+    ml_analytics_task = PythonOperator(
+        task_id="run_ml_analytics",
+        python_callable=run_ml_analytics_task,
+        provide_context=True,
+    )
+
+    # Dependency flow: Extract -> Transform -> Load -> ML Analytics
+    extract_task >> transform_task >> load_task >> ml_analytics_task

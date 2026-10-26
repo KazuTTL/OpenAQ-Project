@@ -38,6 +38,7 @@ class AnomalyDetector:
 
         result = df.copy()
         values = pd.to_numeric(result["value"], errors="coerce")
+        # Tinh thong ke rieng cho tung tram va tung thong so do.
         grouped = result.assign(_numeric_value=values).groupby(groups)["_numeric_value"]
         sample_counts = grouped.transform("count")
         means = grouped.transform("mean")
@@ -152,6 +153,7 @@ class AnomalyDetector:
 
         rows = []
         for measurement_key, group in anomalies.groupby("measurement_key"):
+            # Mot phep do co the bi phat hien boi nhieu phuong phap.
             methods = sorted(set(group["anomaly_method"].dropna().astype(str)))
             scores = []
             for score_column in ("z_score", "rolling_z_score"):

@@ -55,6 +55,7 @@ class DataQualityValidator:
                 "unique_timestamp_count": 0,
             }
 
+        # Chuan hoa ve UTC de phat hien timestamp loi va do phu thoi gian.
         timestamps = pd.to_datetime(df[column], utc=True, errors="coerce")
         valid_timestamps = timestamps.dropna()
         return {
@@ -144,6 +145,7 @@ class DataQualityValidator:
             JOIN dim_time dt ON dt.time_key = fm.time_key
             ORDER BY dt.datetime_utc, fm.location_key, dp.parameter_name;
         """
+        # Doc snapshot kho du lieu de cac bo phan ML dung chung mot dau vao.
         connection = DBConnector.get_raw_connection()
         try:
             with connection.cursor() as cursor:

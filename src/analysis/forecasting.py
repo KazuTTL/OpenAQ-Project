@@ -41,7 +41,7 @@ class AirQualityForecaster:
         df["datetime_utc"] = pd.to_datetime(df["datetime_utc"])
         df = df.sort_values(["location_key", "datetime_utc"])
 
-        # Tao cac dac trung do tre (Lag features) theo tung tram
+        # Tao dac trung do tre rieng theo tung tram, tranh tron cac chuoi thoi gian.
         df["lag_1"] = df.groupby("location_key")["target_value"].shift(1)
         df["lag_2"] = df.groupby("location_key")["target_value"].shift(2)
         df["lag_24"] = df.groupby("location_key")["target_value"].shift(24)
@@ -71,7 +71,7 @@ class AirQualityForecaster:
             "rolling_mean_6", "rolling_mean_24"
         ]
 
-        # Chia tap train/test theo thoi gian (Time-series split: Khong shuffle)
+        # Chia tap train/test theo thoi gian, khong shuffle de tranh ro ri tuong lai.
         split_idx = int(len(data) * (1 - test_ratio))
         train_df = data.iloc[:split_idx]
         test_df = data.iloc[split_idx:]
