@@ -30,7 +30,11 @@ class AirQualityForecaster:
         """
         conn = DBConnector.get_raw_connection()
         try:
-            df = pd.read_sql_query(query, conn, params={"param": target_pollutant.lower()})
+            with conn.cursor() as cursor:
+                cursor.execute(query, {"param": target_pollutant.lower()})
+                rows = cursor.fetchall()
+                columns = [description[0] for description in cursor.description]
+            df = pd.DataFrame.from_records(rows, columns=columns)
         finally:
             conn.close()
         return df
@@ -47,8 +51,13 @@ class AirQualityForecaster:
         df["lag_24"] = df.groupby("location_key")["target_value"].shift(24)
 
         # Dac trung trung binh truot (Rolling features)
-        df["rolling_mean_6"] = df.groupby("location_key")["target_value"].shift(1).rolling(window=6, min_periods=1).mean()
-        df["rolling_mean_24"] = df.groupby("location_key")["target_value"].shift(1).rolling(window=24, min_periods=1).mean()
+        shifted_values = df.groupby("location_key")["target_value"].shift(1)
+        df["rolling_mean_6"] = shifted_values.groupby(df["location_key"]).transform(
+            lambda values: values.rolling(window=6, min_periods=1).mean()
+        )
+        df["rolling_mean_24"] = shifted_values.groupby(df["location_key"]).transform(
+            lambda values: values.rolling(window=24, min_periods=1).mean()
+        )
 
         # Dac trung thoi gian
         df["is_weekend"] = df["day_of_week"].isin([6, 7]).astype(int)
@@ -59,12 +68,17 @@ class AirQualityForecaster:
 
     @classmethod
     def train_and_evaluate(cls, target_pollutant: str = "pm25", test_ratio: float = 0.2) -> dict:
+        if not 0 < test_ratio < 1:
+            raise ValueError("test_ratio must be between 0 and 1")
+
         raw_df = cls.load_time_series_data(target_pollutant)
         if len(raw_df) < 50:
             logger.warning(f"Du lieu ({len(raw_df)} ban ghi) chua du lon de huan luyen mo hinh du doan.")
             return {"status": "insufficient_data", "samples": len(raw_df)}
 
         data = cls.create_features(raw_df)
+        if len(data) < 2:
+            return {"status": "insufficient_data", "samples": len(data)}
         feature_cols = [
             "hour", "day_of_week", "month", "is_weekend",
             "lag_1", "lag_2", "lag_24",
@@ -72,7 +86,9 @@ class AirQualityForecaster:
         ]
 
         # Chia tap train/test theo thoi gian, khong shuffle de tranh ro ri tuong lai.
+        data = data.sort_values("datetime_utc").reset_index(drop=True)
         split_idx = int(len(data) * (1 - test_ratio))
+        split_idx = min(max(split_idx, 1), len(data) - 1)
         train_df = data.iloc[:split_idx]
         test_df = data.iloc[split_idx:]
 
@@ -103,7 +119,14 @@ class AirQualityForecaster:
             "status": "success",
             "train_samples": len(train_df),
             "test_samples": len(test_df),
-            "baseline": {"mae": round(baseline_mae, 2), "rmse": round(baseline_rmse, 2)},
-            "random_forest": {"mae": round(rf_mae, 2), "rmse": round(rf_rmse, 2), "r2": round(rf_r2, 3)},
-            "feature_importances": {k: round(v, 4) for k, v in sorted(feature_importances.items(), key=lambda x: x[1], reverse=True)},
+            "baseline": {"mae": float(round(baseline_mae, 2)), "rmse": float(round(baseline_rmse, 2))},
+            "random_forest": {
+                "mae": float(round(rf_mae, 2)),
+                "rmse": float(round(rf_rmse, 2)),
+                "r2": float(round(rf_r2, 3)),
+            },
+            "feature_importances": {
+                k: float(round(v, 4))
+                for k, v in sorted(feature_importances.items(), key=lambda x: x[1], reverse=True)
+            },
         }

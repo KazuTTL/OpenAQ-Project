@@ -11,6 +11,9 @@ class TestAnalyticsRunner(unittest.TestCase):
     @patch("src.analysis.analytics_runner.PatternMiner.high_aqi_episodes")
     @patch("src.analysis.analytics_runner.PatternMiner.weekday_patterns")
     @patch("src.analysis.analytics_runner.PatternMiner.hourly_patterns")
+    @patch("src.analysis.analytics_runner.MlResultStore.persist_clusters")
+    @patch("src.analysis.analytics_runner.MlResultStore.persist_patterns")
+    @patch("src.analysis.analytics_runner.AirQualityForecaster.train_and_evaluate")
     @patch("src.analysis.analytics_runner.StationClustering.cluster_stations")
     @patch("src.analysis.analytics_runner.StationClustering.evaluate_kmeans")
     @patch("src.analysis.analytics_runner.StationClustering.extract_station_features")
@@ -25,6 +28,9 @@ class TestAnalyticsRunner(unittest.TestCase):
         extract_station_features,
         evaluate_kmeans,
         cluster_stations,
+        train_and_evaluate,
+        persist_patterns,
+        persist_clusters,
         hourly_patterns,
         weekday_patterns,
         high_aqi_episodes,
@@ -40,6 +46,9 @@ class TestAnalyticsRunner(unittest.TestCase):
         weekday_patterns.return_value = pd.DataFrame(index=range(3))
         high_aqi_episodes.return_value = pd.DataFrame(index=range(2))
         pollutant_correlation.return_value = pd.DataFrame(columns=["pm10", "pm25"])
+        persist_clusters.return_value = 3
+        persist_patterns.return_value = 9
+        train_and_evaluate.return_value = {"status": "success", "random_forest": {"mae": 1.2}}
 
         result = run_ml_analytics()
 
@@ -48,9 +57,12 @@ class TestAnalyticsRunner(unittest.TestCase):
         self.assertEqual(result["anomaly_candidates"], 2)
         self.assertEqual(result["anomalies_persisted"], 2)
         self.assertEqual(result["stations_clustered"], 3)
+        self.assertEqual(result["clusters_persisted"], 3)
+        self.assertEqual(result["patterns_persisted"], 9)
         self.assertEqual(result["best_silhouette_score"], 0.51)
         self.assertEqual(result["high_aqi_episodes"], 2)
         self.assertEqual(result["correlated_parameters"], ["pm10", "pm25"])
+        self.assertEqual(result["forecast"]["status"], "success")
 
     @patch("src.analysis.analytics_runner.AnomalyDetector.persist_anomalies")
     @patch("src.analysis.analytics_runner.DataQualityValidator.load_warehouse_measurements")

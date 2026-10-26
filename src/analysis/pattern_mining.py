@@ -22,10 +22,13 @@ class PatternMiner:
         df: pd.DataFrame,
         value_column: str = "aqi",
         group_columns: Optional[Iterable[str]] = None,
+        min_measurements: int = 1,
     ) -> pd.DataFrame:
         groups = list(group_columns or cls.GROUP_COLUMNS)
         cls._require_columns(df, [*groups, "hour", value_column])
-        return (
+        if min_measurements < 1:
+            raise ValueError("min_measurements must be at least 1")
+        result = (
             df.groupby([*groups, "hour"], as_index=False)
             .agg(
                 measurement_count=(value_column, "count"),
@@ -36,6 +39,7 @@ class PatternMiner:
             .sort_values([*groups, "hour"])
             .reset_index(drop=True)
         )
+        return result.loc[result["measurement_count"].ge(min_measurements)].reset_index(drop=True)
 
     @classmethod
     def weekday_patterns(
@@ -43,9 +47,12 @@ class PatternMiner:
         df: pd.DataFrame,
         value_column: str = "aqi",
         group_columns: Optional[Iterable[str]] = None,
+        min_measurements: int = 1,
     ) -> pd.DataFrame:
         groups = list(group_columns or cls.GROUP_COLUMNS)
         cls._require_columns(df, [*groups, "day_of_week", value_column])
+        if min_measurements < 1:
+            raise ValueError("min_measurements must be at least 1")
         result = (
             df.groupby([*groups, "day_of_week"], as_index=False)
             .agg(
@@ -58,7 +65,7 @@ class PatternMiner:
             .reset_index(drop=True)
         )
         result["is_weekend"] = result["day_of_week"].isin([6, 7])
-        return result
+        return result.loc[result["measurement_count"].ge(min_measurements)].reset_index(drop=True)
 
     @classmethod
     def high_aqi_episodes(
