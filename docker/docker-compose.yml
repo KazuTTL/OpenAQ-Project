@@ -95,18 +95,13 @@ services:
   airflow-init:
     <<: *airflow-common
     container_name: openaq_airflow_init
-    entrypoint: >
-      /bin/bash -c "
-      pip install -r /opt/airflow/requirements.txt --no-warn-script-location &&
-      airflow db migrate &&
-      airflow users create \
-        --username ${_AIRFLOW_WWW_USER_USERNAME:-airflow} \
-        --password ${_AIRFLOW_WWW_USER_PASSWORD:-airflow} \
-        --firstname Airflow \
-        --lastname Admin \
-        --role Admin \
-        --email admin@example.com || true
-      "
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        pip install -r /opt/airflow/requirements.txt --no-warn-script-location
+        airflow db migrate
+        airflow users create --username ${_AIRFLOW_WWW_USER_USERNAME:-airflow} --password ${_AIRFLOW_WWW_USER_PASSWORD:-airflow} --firstname Airflow --lastname Admin --role Admin --email admin@example.com || true
     restart: on-failure
 
   # 4. Airflow Webserver

@@ -26,6 +26,7 @@ class AirQualityStatistics:
             GROUP BY dl.city, dl.location_name, dp.parameter_name, dp.unit
             ORDER BY dl.city, dl.location_name, dp.parameter_name;
         """
+        # Thong ke duoc tinh o cap tram, thanh pho va thong so do.
         conn = DBConnector.get_raw_connection()
         try:
             df = pd.read_sql_query(query, conn)
@@ -47,6 +48,7 @@ class AirQualityStatistics:
             GROUP BY dl.city, fm.pollution_category
             ORDER BY dl.city, percentage DESC;
         """
+        # Ty le phan bo giup so sanh muc do o nhiem giua cac thanh pho.
         conn = DBConnector.get_raw_connection()
         try:
             df = pd.read_sql_query(query, conn)
