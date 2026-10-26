@@ -84,6 +84,9 @@ CREATE TABLE IF NOT EXISTS fact_measurement (
     aqi DOUBLE PRECISION,
     pollution_category VARCHAR(50),
     is_anomaly BOOLEAN DEFAULT FALSE,
+    anomaly_score DOUBLE PRECISION,
+    anomaly_method VARCHAR(100),
+    anomaly_detected_at TIMESTAMP,
     loaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_fact_measurement UNIQUE (time_key, location_key, parameter_key)
 );

@@ -80,6 +80,35 @@ class TestAnomalyDetector(unittest.TestCase):
         self.assertTrue(set(result["anomaly_method"]).issubset({"zscore", "iqr", "rolling"}))
         self.assertIn("rolling", set(result["anomaly_method"]))
 
+    def test_prepare_persistence_rows_aggregates_detector_hits(self):
+        anomalies = pd.DataFrame({
+            "measurement_key": [10, 10, 20],
+            "anomaly_method": ["zscore", "rolling", "iqr"],
+            "z_score": [4.0, None, None],
+            "rolling_z_score": [None, 6.0, None],
+        })
+
+        result = AnomalyDetector.prepare_persistence_rows(anomalies)
+        result = result.sort_values("measurement_key").reset_index(drop=True)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result.loc[0, "measurement_key"], 10)
+        self.assertEqual(result.loc[0, "anomaly_method"], "rolling,zscore")
+        self.assertEqual(result.loc[0, "anomaly_score"], 6.0)
+        self.assertEqual(result.loc[1, "anomaly_method"], "iqr")
+        self.assertTrue(pd.isna(result.loc[1, "anomaly_score"]))
+
+    def test_prepare_persistence_rows_handles_empty_input(self):
+        anomalies = pd.DataFrame(columns=["measurement_key", "anomaly_method"])
+
+        result = AnomalyDetector.prepare_persistence_rows(anomalies)
+
+        self.assertTrue(result.empty)
+        self.assertEqual(
+            list(result.columns),
+            ["measurement_key", "anomaly_score", "anomaly_method"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -142,6 +142,75 @@ class AnomalyDetector:
         return pd.concat(non_empty, ignore_index=True, sort=False)
 
     @staticmethod
+    def prepare_persistence_rows(anomalies: pd.DataFrame) -> pd.DataFrame:
+        required_columns = {"measurement_key", "anomaly_method"}
+        missing_columns = required_columns - set(anomalies.columns)
+        if missing_columns:
+            raise ValueError(f"Missing persistence columns: {sorted(missing_columns)}")
+        if anomalies.empty:
+            return pd.DataFrame(columns=["measurement_key", "anomaly_score", "anomaly_method"])
+
+        rows = []
+        for measurement_key, group in anomalies.groupby("measurement_key"):
+            methods = sorted(set(group["anomaly_method"].dropna().astype(str)))
+            scores = []
+            for score_column in ("z_score", "rolling_z_score"):
+                if score_column in group:
+                    scores.extend(
+                        abs(float(score))
+                        for score in group[score_column].dropna()
+                        if np.isfinite(score)
+                    )
+            rows.append({
+                "measurement_key": int(measurement_key),
+                "anomaly_score": max(scores) if scores else None,
+                "anomaly_method": ",".join(methods),
+            })
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def persist_anomalies(
+        cls,
+        anomalies: pd.DataFrame,
+        clear_existing: bool = True,
+    ) -> int:
+        updates = cls.prepare_persistence_rows(anomalies)
+        conn = DBConnector.get_raw_connection()
+        try:
+            with conn.cursor() as cur:
+                if clear_existing:
+                    cur.execute(
+                        """
+                        UPDATE fact_measurement
+                        SET is_anomaly = FALSE,
+                            anomaly_score = NULL,
+                            anomaly_method = NULL,
+                            anomaly_detected_at = NULL;
+                        """
+                    )
+                for row in updates.itertuples(index=False):
+                    cur.execute(
+                        """
+                        UPDATE fact_measurement
+                        SET is_anomaly = TRUE,
+                            anomaly_score = %s,
+                            anomaly_method = %s,
+                            anomaly_detected_at = CURRENT_TIMESTAMP
+                        WHERE measurement_key = %s;
+                        """,
+                        (row.anomaly_score, row.anomaly_method, row.measurement_key),
+                    )
+            conn.commit()
+            logger.info(f"Da luu {len(updates)} ban ghi bat thuong vao CSDL DWH.")
+            return len(updates)
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Loi khi luu ket qua bat thuong: {e}")
+            raise
+        finally:
+            conn.close()
+
+    @staticmethod
     def detect_zscore_anomalies(threshold: float = 3.0) -> pd.DataFrame:
         query = """
             SELECT 
