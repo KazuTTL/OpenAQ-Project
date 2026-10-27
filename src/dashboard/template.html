@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIR QUALITY MONITORING - Việt Nam</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #070d19;
+      --bg-sidebar: #0b1324;
+      --bg-card: #101b33;
+      --bg-card-inner: #15223f;
+      --border-color: #1e3158;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #2563eb;
+      --accent-cyan: #06b6d4;
+      --good: #10b981;
+      --moderate: #eab308;
+      --unhealthy-sens: #f97316;
+      --unhealthy: #ef4444;
+      --very-unhealthy: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 20% 10%, #101f3c 0%, #070d19 70%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* TOP HEADER */
+    .top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 22px;
+      background: rgba(11, 19, 36, 0.92);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(8px);
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.2));
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #10b981;
+      flex-shrink: 0;
+    }
+
+    .brand-title h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #ffffff;
+      line-height: 1.15;
+    }
+
+    .brand-title span {
+      font-size: 13px;
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .brand-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border-color);
+      margin: 0 4px;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      max-width: 310px;
+      line-height: 1.4;
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 6px 11px;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .filter-pill svg {
+      width: 14px;
+      height: 14px;
+      color: #38bdf8;
+      flex-shrink: 0;
+    }
+
+    .filter-pill select {
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-pill select option {
+      background: #0f172a;
+      color: #f1f5f9;
+    }
+
+    .last-updated {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding-left: 6px;
+    }
+
+    .refresh-btn {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(56, 189, 248, 0.25);
+    }
+
+    /* MAIN BODY LAYOUT */
+    .workspace {
+      display: grid;
+      grid-template-columns: 205px 1fr;
+      flex: 1;
+      min-height: calc(100vh - 65px);
+    }
+
+    /* LEFT SIDEBAR */
+    .sidebar {
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .nav-item svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+    }
+
+    .nav-item:hover {
+      background: rgba(37, 99, 235, 0.12);
+      color: #ffffff;
+    }
+
+    .nav-item.active {
+      background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+
+    .sidebar-footer {
+      text-align: center;
+      padding: 16px 8px 8px;
+      border-top: 1px solid rgba(30, 49, 88, 0.6);
+      color: var(--text-muted);
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+
+    .sidebar-footer svg {
+      width: 100%;
+      height: 56px;
+      margin-bottom: 8px;
+      opacity: 0.45;
+    }
+
+    /* DASHBOARD 2x2 QUADRANT GRID */
+    .content-area {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+
+    .content-area.single-view {
+      grid-template-columns: 1fr;
+    }
+
+    .quadrant-card {
+      background: linear-gradient(180deg, rgba(19, 31, 58, 0.95) 0%, rgba(13, 23, 44, 0.95) 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .card-title svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* QUADRANT 1: TONG QUAN CHAT LUONG KHONG KHI */
+    .q1-top-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.35fr 1.1fr;
+      gap: 12px;
+    }
+
+    .sub-box {
+      background: var(--bg-card-inner);
+      border: 1px solid rgba(43, 69, 118, 0.55);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .sub-box-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 10px;
+    }
+
+    .sub-box-title small {
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .aqi-hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin: 8px 0 10px;
+    }
+
+    .aqi-face-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid var(--moderate);
+      background: rgba(234, 179, 8, 0.12);
+      color: var(--moderate);
+      flex-shrink: 0;
+    }
+
+    .aqi-score-block {
+      text-align: left;
+    }
+
+    .aqi-big-num {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--moderate);
+    }
+
+    .aqi-status-text {
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 3px;
+      color: var(--moderate);
+    }
+
+    .aqi-updated-foot {
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 8px;
+    }
+
+    /* Group list */
+    .group-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .group-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+    }
+
+    .group-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .group-count {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Right column stacked boxes */
+    .q1-right-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .stat-mini-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-icon-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .stat-icon-green {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #10b981;
+    }
+
+    .stat-icon-purple {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #c084fc;
+    }
+
+    .stat-main-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .stat-main-val small {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .stat-sub-val {
+      font-size: 11.5px;
+      color: #10b981;
+      margin-top: 2px;
+    }
+
+    /* Q1 Bottom Grid */
+    .q1-bottom-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 12px;
+    }
+
+    .pollutant-bars-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .p-bar-row {
+      display: grid;
+      grid-template-columns: 46px 1fr 30px;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+    }
+
+    .p-bar-label {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .p-bar-track {
+      height: 9px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .p-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .p-bar-val {
+      text-align: right;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    /* Scale Box */
+    .scale-segments {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      margin-top: 14px;
+    }
+
+    .scale-seg {
+      text-align: center;
+    }
+
+    .scale-seg-bar {
+      height: 11px;
+      border-radius: 3px;
+      margin-bottom: 6px;
+    }
+
+    .scale-seg-num {
+      font-size: 10px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .scale-seg-lbl {
+      font-size: 10px;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* QUADRANT 2: XU HUONG THEO THOI GIAN */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-group {
+      display: flex;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-color);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .btn-toggle {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-toggle.active {
+      background: var(--accent-blue);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .mini-select {
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 7px;
+      padding: 4px 9px;
+      font-size: 11.5px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .chart-box {
+      background: var(--bg-card-inner);
+      border: 1px solid rgba(43, 69, 118, 0.55);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 170px;
+    }
+
+    /* QUADRANT 3: THEO VI TRI */
+    .q3-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1.15fr;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .map-container {
+      background: radial-gradient(circle at 50% 45%, #162a4f 0%, #0d1830 100%);
+      border: 1px solid rgba(43, 69, 118, 0.55);
+      border-radius: 10px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+      min-height: 365px;
+      overflow: hidden;
+    }
+
+    .vn-svg-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .vn-svg-wrap svg {
+      width: 100%;
+      max-height: 300px;
+      transition: transform 0.25s ease;
+    }
+
+    .map-Legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px 10px;
+      font-size: 10.5px;
+      color: var(--text-secondary);
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .map-zoom-btns {
+      position: absolute;
+      right: 10px;
+      bottom: 62px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .zoom-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-color);
+      color: #e2e8f0;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Tables */
+    .dark-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+
+    .dark-table th {
+      text-align: left;
+      color: var(--text-secondary);
+      font-weight: 500;
+      padding: 7px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .dark-table td {
+      padding: 7px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+    }
+
+    .aqi-pill {
+      display: inline-block;
+      min-width: 38px;
+      text-align: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 11px;
+      color: #090d16;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    .status-warn {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .status-watch {
+      background: rgba(234, 179, 8, 0.16);
+      color: #facc15;
+      border: 1px solid rgba(234, 179, 8, 0.4);
+    }
+
+    @media (max-width: 1200px) {
+      .content-area {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header class="top-header">
+    <div class="brand-group">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>AIR QUALITY MONITORING</h1>
+        <span>Việt Nam</span>
+      </div>
+      <div class="brand-divider"></div>
+      <p class="brand-subtitle">
+        Giám sát chất lượng không khí theo thời gian thực và phân tích xu hướng tại các thành phố lớn ở Việt Nam
+      </p>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span id="filterDateRange">20/10/2026 – 27/10/2026</span>
+      </div>
+
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <select id="cityFilter" onchange="reloadDashboard()">
+          <option value="all">Tất cả thành phố</option>
+        </select>
+      </div>
+
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path>
+          <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path>
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path>
+          <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"></path>
+        </svg>
+        <select id="stationFilter" onchange="reloadDashboard()">
+          <option value="all">Tất cả trạm</option>
+        </select>
+      </div>
+
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"></path>
+          <path d="M8.5 2h7"></path>
+          <path d="M7 16h10"></path>
+        </svg>
+        <select id="paramFilter" onchange="reloadDashboard()">
+          <option value="all">Tất cả chất ô nhiễm</option>
+          <option value="pm25">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="no2">NO2</option>
+          <option value="so2">SO2</option>
+          <option value="co">CO</option>
+          <option value="o3">O3</option>
+        </select>
+      </div>
+
+      <div class="last-updated">
+        <div>
+          <div style="color:#64748b;">Cập nhật lần cuối</div>
+          <div id="topUpdatedAt" style="color:#cbd5e1;font-weight:600;">--</div>
+        </div>
+        <button class="refresh-btn" onclick="reloadDashboard()" title="Làm mới dữ liệu">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <nav class="nav-list">
+        <div class="nav-item active" onclick="switchSection('all', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Tổng quan</span>
+        </div>
+        <div class="nav-item" onclick="switchSection('trends', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span>Xu hướng thời gian</span>
+        </div>
+        <div class="nav-item" onclick="switchSection('locations', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <span>Theo vị trí</span>
+        </div>
+        <div class="nav-item" onclick="switchSection('forecast', this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Dự báo & cảnh báo</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <svg viewBox="0 0 200 60" fill="none" stroke="#64748b" stroke-width="1.5">
+          <path d="M5 58 H195 M20 58 V30 H42 V58 M48 58 V18 H75 V58 M82 58 V35 H102 V58 M112 58 V12 H142 V58 M150 58 V26 H176 V58"/>
+          <line x1="56" y1="26" x2="67" y2="26"/><line x1="56" y1="34" x2="67" y2="34"/>
+          <line x1="120" y1="22" x2="134" y2="22"/><line x1="120" y1="30" x2="134" y2="30"/><line x1="120" y1="38" x2="134" y2="38"/>
+        </svg>
+        <div>Không khí trong lành<br/>là sức khỏe của bạn</div>
+      </div>
+    </aside>
+
+    <!-- 2x2 CONTENT AREA -->
+    <main class="content-area" id="mainGrid">
+
+      <!-- QUADRANT 1: TONG QUAN CHAT LUONG KHONG KHI -->
+      <section class="quadrant-card" id="sec-overview">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+            </svg>
+            <span>Tổng quan chất lượng không khí</span>
+          </div>
+        </div>
+
+        <div class="q1-top-grid">
+          <!-- Box 1: AQI hien tai -->
+          <div class="sub-box">
+            <div class="sub-box-title">AQI hiện tại <small>(toàn quốc)</small></div>
+            <div class="aqi-hero">
+              <div class="aqi-face-circle" id="aqiFaceCircle">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                  <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                  <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+              </div>
+              <div class="aqi-score-block">
+                <div class="aqi-big-num" id="nationalAqiNum">78</div>
+                <div class="aqi-status-text" id="nationalAqiCat">Trung bình</div>
+              </div>
+            </div>
+            <div class="aqi-updated-foot" id="cardUpdatedAt">Cập nhật: --</div>
+          </div>
+
+          <!-- Box 2: Nhom muc o nhiem -->
+          <div class="sub-box">
+            <div class="sub-box-title">Nhóm mức ô nhiễm</div>
+            <div class="group-list" id="pollutionGroupsList"></div>
+          </div>
+
+          <!-- Box 3: So tram & Chat o nhiem cao nhat -->
+          <div class="q1-right-stack">
+            <div class="sub-box" style="flex:1;">
+              <div class="sub-box-title">Số trạm đang hoạt động</div>
+              <div class="stat-mini-row">
+                <div class="stat-icon-circle stat-icon-green">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+                    <circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="stat-main-val" id="activeStationsText">12 <small>/ 12</small></div>
+                  <div class="stat-sub-val" id="activeStationsPct">(100%)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-box" style="flex:1;">
+              <div class="sub-box-title">Chất ô nhiễm cao nhất <small>(toàn quốc)</small></div>
+              <div class="stat-mini-row">
+                <div class="stat-icon-circle stat-icon-purple">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="4"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="5" cy="5" r="2"/>
+                    <line x1="15" y1="9" x2="17.5" y2="6.5"/><line x1="9" y1="15" x2="6.5" y2="17.5"/><line x1="9" y1="9" x2="6.5" y2="6.5"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:#e2e8f0;" id="topPollutantName">PM2.5</div>
+                  <div style="font-size:15px;font-weight:800;color:#ffffff;" id="topPollutantVal">42 µg/m³</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q1 Bottom Row -->
+        <div class="q1-bottom-grid">
+          <div class="sub-box">
+            <div class="sub-box-title">Chỉ số AQI theo chất ô nhiễm <small>(trung bình toàn quốc)</small></div>
+            <div class="pollutant-bars-list" id="pollutantBarsList"></div>
+          </div>
+
+          <div class="sub-box">
+            <div class="sub-box-title">Thang đo chất lượng không khí (AQI)</div>
+            <div class="scale-segments">
+              <div class="scale-seg">
+                <div class="scale-seg-bar" style="background:#10b981;"></div>
+                <div class="scale-seg-num">0–50</div>
+                <div class="scale-seg-lbl" style="color:#10b981;">Tốt</div>
+              </div>
+              <div class="scale-seg">
+                <div class="scale-seg-bar" style="background:#eab308;"></div>
+                <div class="scale-seg-num">51–100</div>
+                <div class="scale-seg-lbl" style="color:#eab308;">Trung bình</div>
+              </div>
+              <div class="scale-seg">
+                <div class="scale-seg-bar" style="background:#f97316;"></div>
+                <div class="scale-seg-num">101–150</div>
+                <div class="scale-seg-lbl" style="color:#f97316;">Kém</div>
+              </div>
+              <div class="scale-seg">
+                <div class="scale-seg-bar" style="background:#ef4444;"></div>
+                <div class="scale-seg-num">151–200</div>
+                <div class="scale-seg-lbl" style="color:#ef4444;">Xấu</div>
+              </div>
+              <div class="scale-seg">
+                <div class="scale-seg-bar" style="background:#a855f7;"></div>
+                <div class="scale-seg-num">201–300</div>
+                <div class="scale-seg-lbl" style="color:#a855f7;">Rất xấu</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUADRANT 2: XU HUONG THEO THOI GIAN -->
+      <section class="quadrant-card" id="sec-trends">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+            <span>Xu hướng theo thời gian</span>
+          </div>
+
+          <div class="header-controls">
+            <div class="btn-group">
+              <button class="btn-toggle active" onclick="setGranularity('hour', this)">Theo giờ</button>
+              <button class="btn-toggle" onclick="setGranularity('day', this)">Theo ngày</button>
+            </div>
+            <select class="mini-select" id="trendParamSelect" onchange="reloadDashboard()">
+              <option value="pm25">PM2.5</option>
+              <option value="pm10">PM10</option>
+              <option value="no2">NO2</option>
+              <option value="so2">SO2</option>
+              <option value="co">CO</option>
+              <option value="o3">O3</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="sub-box-title" id="trendChartTitle">Nồng độ PM2.5 (µg/m³)</div>
+          <div id="trendLineChart" class="chart-canvas"></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="sub-box-title">Bản đồ nhiệt AQI theo giờ <small>(toàn quốc)</small></div>
+          <div id="hourlyHeatmapChart" class="chart-canvas" style="height:155px;"></div>
+        </div>
+      </section>
+
+      <!-- QUADRANT 3: THEO VI TRI -->
+      <section class="quadrant-card" id="sec-locations">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+              <line x1="8" y1="2" x2="8" y2="18"></line>
+              <line x1="16" y1="6" x2="16" y2="22"></line>
+            </svg>
+            <span>Theo vị trí</span>
+          </div>
+        </div>
+
+        <div class="q3-grid">
+          <!-- Vietnam SVG Map -->
+          <div class="map-container">
+            <div class="vn-svg-wrap">
+              <svg id="vnMapSvg" viewBox="0 0 260 380" xmlns="http://www.w3.org/2000/svg">
+                <!-- Mainland Vietnam stylized regions -->
+                <path d="M65,24 L95,18 L122,28 L135,50 L125,75 L105,92 L95,112 L112,138 L138,168 L156,202 L162,240 L152,276 L128,302 L98,332 L76,345 L66,325 L78,298 L108,274 L126,242 L124,205 L106,172 L82,140 L72,108 L52,82 L44,54 Z"
+                      fill="#1e3a5f" stroke="#38bdf8" stroke-width="1.2" opacity="0.65"/>
+                <!-- Northern Region shading -->
+                <path d="M65,24 L95,18 L122,28 L135,50 L125,75 L105,92 L72,108 L52,82 L44,54 Z"
+                      fill="#eab308" opacity="0.55" stroke="#0f172a" stroke-width="0.8"/>
+                <!-- Red River Delta hotspot -->
+                <path d="M84,52 L118,50 L124,74 L96,86 Z"
+                      fill="#f97316" opacity="0.8" stroke="#0f172a" stroke-width="0.8"/>
+                <!-- Central Region shading -->
+                <path d="M72,108 L105,92 L95,112 L112,138 L138,168 L156,202 L124,205 L106,172 L82,140 Z"
+                      fill="#10b981" opacity="0.65" stroke="#0f172a" stroke-width="0.8"/>
+                <!-- South Central & Highlands -->
+                <path d="M124,205 L156,202 L162,240 L152,276 L126,242 Z"
+                      fill="#10b981" opacity="0.7" stroke="#0f172a" stroke-width="0.8"/>
+                <!-- Southern & Mekong Region -->
+                <path d="M126,242 L152,276 L128,302 L98,332 L76,345 L66,325 L78,298 L108,274 Z"
+                      fill="#eab308" opacity="0.68" stroke="#0f172a" stroke-width="0.8"/>
+
+                <!-- Quan dao Hoang Sa & Truong Sa -->
+                <g fill="#38bdf8" opacity="0.85">
+                  <circle cx="195" cy="155" r="2.2"/><circle cx="202" cy="158" r="1.8"/><circle cx="190" cy="161" r="1.6"/>
+                  <text x="172" y="174" fill="#94a3b8" font-size="8" font-weight="600">QĐ. Hoàng Sa</text>
+
+                  <circle cx="205" cy="285" r="2.2"/><circle cx="214" cy="290" r="1.8"/><circle cx="198" cy="294" r="1.8"/>
+                  <text x="172" y="307" fill="#94a3b8" font-size="8" font-weight="600">QĐ. Trường Sa</text>
+                </g>
+
+                <!-- Dynamic City Pins Layer -->
+                <g id="vnMapPins"></g>
+              </svg>
+
+              <div class="map-zoom-btns">
+                <button class="zoom-btn" onclick="zoomMap(1.15)">+</button>
+                <button class="zoom-btn" onclick="zoomMap(0.87)">−</button>
+              </div>
+            </div>
+
+            <div class="map-Legend">
+              <div class="map-legend-item"><span class="dot" style="background:#10b981"></span>Tốt (0–50)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#ef4444"></span>Xấu (151–200)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#eab308"></span>Trung bình (51–100)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#a855f7"></span>Rất xấu (201–300)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#f97316"></span>Kém (101–150)</div>
+            </div>
+          </div>
+
+          <!-- Top 10 Cities Table -->
+          <div class="sub-box" style="overflow-x:auto;">
+            <div class="sub-box-title">Top 10 thành phố có AQI cao nhất</div>
+            <table class="dark-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Thành phố</th>
+                  <th>AQI</th>
+                  <th>Mức độ</th>
+                </tr>
+              </thead>
+              <tbody id="top10CitiesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUADRANT 4: DU BAO & CANH BAO -->
+      <section class="quadrant-card" id="sec-forecast">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Dự báo & cảnh báo</span>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div class="sub-box-title" style="margin-bottom:0;">Dự báo ngắn hạn (PM2.5)</div>
+            <select class="mini-select" id="forecastCitySelect" onchange="reloadDashboard()">
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="TP. HCM">TP. HCM</option>
+              <option value="Biên Hòa">Biên Hòa</option>
+              <option value="Bắc Ninh">Bắc Ninh</option>
+              <option value="Hải Phòng">Hải Phòng</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+            </select>
+          </div>
+          <div id="forecastChart" class="chart-canvas" style="height:150px;"></div>
+        </div>
+
+        <div class="sub-box" style="overflow-x:auto;">
+          <div class="sub-box-title">Các điểm bất thường</div>
+          <table class="dark-table">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Trạm</th>
+                <th>Thông số</th>
+                <th>Giá trị đo được</th>
+                <th>Ngưỡng</th>
+                <th>Mức độ</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="anomalyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    let currentGranularity = 'hour';
+    let mapZoom = 1.0;
+    let trendChartInstance = null;
+    let heatmapChartInstance = null;
+    let forecastChartInstance = null;
+    let filtersInitialized = false;
+
+    function zoomMap(factor) {
+      mapZoom = Math.min(1.6, Math.max(0.8, mapZoom * factor));
+      document.getElementById('vnMapSvg').style.transform = `scale(${mapZoom})`;
+    }
+
+    function setGranularity(gran, btn) {
+      currentGranularity = gran;
+      document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      reloadDashboard();
+    }
+
+    function switchSection(sec, navEl) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      navEl.classList.add('active');
+
+      const mainGrid = document.getElementById('mainGrid');
+      const sections = {
+        overview: document.getElementById('sec-overview'),
+        trends: document.getElementById('sec-trends'),
+        locations: document.getElementById('sec-locations'),
+        forecast: document.getElementById('sec-forecast'),
+      };
+
+      if (sec === 'all') {
+        mainGrid.classList.remove('single-view');
+        Object.values(sections).forEach(s => s.style.display = 'flex');
+      } else {
+        mainGrid.classList.add('single-view');
+        Object.entries(sections).forEach(([k, s]) => {
+          s.style.display = (k === sec) ? 'flex' : 'none';
+        });
+      }
+      setTimeout(() => {
+        if (trendChartInstance) trendChartInstance.resize();
+        if (heatmapChartInstance) heatmapChartInstance.resize();
+        if (forecastChartInstance) forecastChartInstance.resize();
+      }, 60);
+    }
+
+    async function reloadDashboard() {
+      const city = document.getElementById('cityFilter').value;
+      const station = document.getElementById('stationFilter').value;
+      const param = document.getElementById('paramFilter').value;
+      const trendParam = document.getElementById('trendParamSelect').value;
+      const fcCity = document.getElementById('forecastCitySelect').value;
+
+      const qs = new URLSearchParams({
+        city,
+        station,
+        param,
+        trend_param: trendParam,
+        granularity: currentGranularity,
+        forecast_city: fcCity,
+      });
+
+      const resp = await fetch(`/api/dashboard-data?${qs.toString()}`);
+      const data = await resp.json();
+      renderDashboard(data);
+    }
+
+    function renderDashboard(data) {
+      // 1. Filters
+      if (!filtersInitialized) {
+        const citySel = document.getElementById('cityFilter');
+        data.filters.cities.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          citySel.appendChild(opt);
+        });
+        const stSel = document.getElementById('stationFilter');
+        data.filters.stations.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          stSel.appendChild(opt);
+        });
+        filtersInitialized = true;
+      }
+      document.getElementById('filterDateRange').textContent = data.filters.date_range;
+      document.getElementById('topUpdatedAt').textContent = data.filters.updated_at;
+
+      // 2. Quadrant 1: Overview
+      const ov = data.overview;
+      const aqiNumEl = document.getElementById('nationalAqiNum');
+      const aqiCatEl = document.getElementById('nationalAqiCat');
+      const faceEl = document.getElementById('aqiFaceCircle');
+      aqiNumEl.textContent = ov.national_aqi;
+      aqiNumEl.style.color = ov.color;
+      aqiCatEl.textContent = ov.category;
+      aqiCatEl.style.color = ov.color;
+      faceEl.style.borderColor = ov.color;
+      faceEl.style.color = ov.color;
+      document.getElementById('cardUpdatedAt').textContent = `Cập nhật: ${ov.updated_at}`;
+
+      const grpContainer = document.getElementById('pollutionGroupsList');
+      grpContainer.innerHTML = ov.pollution_groups.map(g => `
+        <div class="group-row">
+          <div class="group-left">
+            <span class="dot" style="background:${g.color}"></span>
+            <span style="color:#e2e8f0;font-weight:600;">${g.label}</span>
+            <span style="color:#64748b;">${g.range}</span>
+          </div>
+          <span class="group-count">${g.count} thành phố</span>
+        </div>
+      `).join('');
+
+      document.getElementById('activeStationsText').innerHTML = `${ov.active_stations.active} <small>/ ${ov.active_stations.total}</small>`;
+      document.getElementById('activeStationsPct').textContent = `(${ov.active_stations.pct}%)`;
+      document.getElementById('topPollutantName').textContent = ov.top_pollutant.code;
+      document.getElementById('topPollutantVal').textContent = `${ov.top_pollutant.value} ${ov.top_pollutant.unit}`;
+
+      const barsContainer = document.getElementById('pollutantBarsList');
+      barsContainer.innerHTML = ov.pollutant_bars.map(b => {
+        const widthPct = Math.min(100, Math.max(8, Math.round((b.aqi / 150) * 100)));
+        return `
+          <div class="p-bar-row">
+            <span class="p-bar-label">${b.code}</span>
+            <div class="p-bar-track">
+              <div class="p-bar-fill" style="width:${widthPct}%;background:${b.color};"></div>
+            </div>
+            <span class="p-bar-val">${b.aqi}</span>
+          </div>
+        `;
+      }).join('');
+
+      // 3. Quadrant 2: Trends & Heatmap
+      const trendParamLabel = document.getElementById('trendParamSelect').selectedOptions[0].text;
+      const unitLabel = (trendParamLabel === 'PM2.5' || trendParamLabel === 'PM10') ? 'µg/m³' : 'ppm';
+      document.getElementById('trendChartTitle').textContent = `Nồng độ ${trendParamLabel} (${unitLabel})`;
+      renderTrendChart(data.trends);
+      renderHeatmapChart(data.trends.heatmap);
+
+      // 4. Quadrant 3: Map & Top 10 Cities
+      renderVietnamMapPins(data.locations.all_cities);
+      const top10Body = document.getElementById('top10CitiesBody');
+      top10Body.innerHTML = data.locations.top10_cities.map(c => `
+        <tr>
+          <td style="color:#94a3b8;font-weight:600;">${c.rank}</td>
+          <td style="font-weight:600;">${c.city}</td>
+          <td><span class="aqi-pill" style="background:${c.color};">${c.aqi}</span></td>
+          <td style="color:${c.color};font-weight:600;">${c.category}</td>
+        </tr>
+      `).join('');
+
+      // 5. Quadrant 4: Forecast & Anomalies
+      renderForecastChart(data.forecast_alerts);
+      const anomBody = document.getElementById('anomalyTableBody');
+      anomBody.innerHTML = data.forecast_alerts.anomalies.slice(0, 5).map(a => {
+        const isHigh = a.status === 'Cảnh báo';
+        const valColor = isHigh ? '#ef4444' : '#eab308';
+        const badgeCls = isHigh ? 'status-warn' : 'status-watch';
+        return `
+          <tr>
+            <td style="color:#cbd5e1;">${a.time}</td>
+            <td style="font-weight:500;">${a.station}</td>
+            <td>${a.param}</td>
+            <td style="color:${valColor};font-weight:700;">${a.value}</td>
+            <td style="color:#94a3b8;">${a.threshold}</td>
+            <td style="color:${valColor};font-weight:600;">${a.severity}</td>
+            <td><span class="status-badge ${badgeCls}">${a.status}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderTrendChart(trends) {
+      const dom = document.getElementById('trendLineChart');
+      if (!trendChartInstance) trendChartInstance = echarts.init(dom);
+      const series = trends.series.map(s => ({
+        name: s.city,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        data: s.data,
+        lineStyle: { width: 2, color: s.color },
+        itemStyle: { color: s.color },
+      }));
+      trendChartInstance.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', backgroundColor: '#0f172a', borderColor: '#1e3158', textStyle: { color: '#f1f5f9', fontSize: 11 } },
+        legend: { top: 0, right: 0, textStyle: { color: '#cbd5e1', fontSize: 11 }, itemWidth: 14, itemHeight: 8 },
+        grid: { top: 28, left: 34, right: 12, bottom: 22 },
+        xAxis: {
+          type: 'category',
+          data: trends.labels,
+          axisLine: { lineStyle: { color: '#334155' } },
+          axisLabel: { color: '#94a3b8', fontSize: 10 },
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+          axisLabel: { color: '#94a3b8', fontSize: 10 },
+        },
+        series,
+      }, true);
+    }
+
+    function renderHeatmapChart(hm) {
+      const dom = document.getElementById('hourlyHeatmapChart');
+      if (!heatmapChartInstance) heatmapChartInstance = echarts.init(dom);
+      heatmapChartInstance.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          position: 'top',
+          backgroundColor: '#0f172a',
+          borderColor: '#1e3158',
+          textStyle: { color: '#f1f5f9', fontSize: 11 },
+          formatter: p => `${hm.cities[p.value[1]]} (${hm.hours[p.value[0]]}): <b>AQI ${p.value[2]}</b>`,
+        },
+        grid: { top: 8, left: 64, right: 48, bottom: 22 },
+        xAxis: {
+          type: 'category',
+          data: hm.hours,
+          splitArea: { show: false },
+          axisLine: { lineStyle: { color: '#334155' } },
+          axisLabel: { color: '#94a3b8', fontSize: 9.5, interval: 1 },
+        },
+        yAxis: {
+          type: 'category',
+          data: hm.cities,
+          axisLine: { lineStyle: { color: '#334155' } },
+          axisLabel: { color: '#cbd5e1', fontSize: 10.5 },
+        },
+        visualMap: {
+          min: 20,
+          max: 220,
+          calculable: false,
+          orient: 'vertical',
+          right: 0,
+          top: 'center',
+          itemWidth: 10,
+          itemHeight: 95,
+          textStyle: { color: '#94a3b8', fontSize: 9.5 },
+          inRange: {
+            color: ['#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444', '#a855f7'],
+          },
+        },
+        series: [{
+          type: 'heatmap',
+          data: hm.matrix,
+          itemStyle: { borderColor: '#101b33', borderWidth: 1.5, borderRadius: 2 },
+        }],
+      }, true);
+    }
+
+    function renderVietnamMapPins(cities) {
+      const g = document.getElementById('vnMapPins');
+      // Chuyen doi lat (8.5..23.5) va lon (102..110) sang toa do SVG (0..260, 0..380)
+      const calloutCities = new Set(['Hà Nội', 'Đà Nẵng', 'TP. HCM']);
+      let html = '';
+      cities.forEach(c => {
+        const x = Math.round(45 + ((c.lon - 102.0) / 8.0) * 145);
+        const y = Math.round(350 - ((c.lat - 8.5) / 15.0) * 325);
+        html += `
+          <g>
+            <circle cx="${x}" cy="${y}" r="8" fill="${c.color}" opacity="0.28"/>
+            <circle cx="${x}" cy="${y}" r="4.2" fill="${c.color}" stroke="#0f172a" stroke-width="1.2">
+              <title>${c.city}: AQI ${c.aqi} (${c.category})</title>
+            </circle>
+          </g>
+        `;
+        if (calloutCities.has(c.city)) {
+          const offsetX = c.city === 'Hà Nội' ? 18 : 14;
+          const offsetY = c.city === 'Hà Nội' ? -10 : 4;
+          html += `
+            <g>
+              <line x1="${x}" y1="${y}" x2="${x + offsetX}" y2="${y + offsetY}" stroke="#cbd5e1" stroke-width="0.9"/>
+              <text x="${x + offsetX + 4}" y="${y + offsetY - 2}" fill="#e2e8f0" font-size="10.5" font-weight="700">${c.city}</text>
+              <text x="${x + offsetX + 4}" y="${y + offsetY + 12}" fill="${c.color}" font-size="13" font-weight="800">${c.aqi}</text>
+            </g>
+          `;
+        }
+      });
+      g.innerHTML = html;
+    }
+
+    function renderForecastChart(fc) {
+      const dom = document.getElementById('forecastChart');
+      if (!forecastChartInstance) forecastChartInstance = echarts.init(dom);
+      forecastChartInstance.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', backgroundColor: '#0f172a', borderColor: '#1e3158', textStyle: { color: '#f1f5f9', fontSize: 11 } },
+        legend: {
+          data: ['Thực tế', 'Dự báo'],
+          right: 6,
+          top: 0,
+          textStyle: { color: '#cbd5e1', fontSize: 11 },
+        },
+        grid: { top: 24, left: 34, right: 16, bottom: 22 },
+        xAxis: {
+          type: 'category',
+          data: fc.dates,
+          axisLine: { lineStyle: { color: '#334155' } },
+          axisLabel: { color: '#94a3b8', fontSize: 10 },
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+          axisLabel: { color: '#94a3b8', fontSize: 10 },
+        },
+        series: [
+          {
+            name: 'UpperBand',
+            type: 'line',
+            data: fc.upper,
+            lineStyle: { opacity: 0 },
+            symbol: 'none',
+            areaStyle: { color: 'rgba(59, 130, 246, 0.16)' },
+            tooltip: { show: false },
+          },
+          {
+            name: 'Thực tế',
+            type: 'line',
+            smooth: true,
+            data: fc.actual,
+            symbol: 'circle',
+            symbolSize: 6,
+            lineStyle: { width: 2.5, color: '#3b82f6' },
+            itemStyle: { color: '#3b82f6' },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(59, 130, 246, 0.28)' },
+                { offset: 1, color: 'rgba(59, 130, 246, 0.0)' },
+              ]),
+            },
+          },
+          {
+            name: 'Dự báo',
+            type: 'line',
+            smooth: true,
+            data: fc.forecast,
+            symbol: 'circle',
+            symbolSize: 5,
+            lineStyle: { width: 2.2, type: 'dashed', color: '#60a5fa' },
+            itemStyle: { color: '#60a5fa' },
+          },
+        ],
+      }, true);
+    }
+
+    window.addEventListener('resize', () => {
+      if (trendChartInstance) trendChartInstance.resize();
+      if (heatmapChartInstance) heatmapChartInstance.resize();
+      if (forecastChartInstance) forecastChartInstance.resize();
+    });
+
+    reloadDashboard();
+  </script>
+</body>
+</html>

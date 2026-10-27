@@ -1,0 +1,182 @@
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.8.1-python3.10
+  environment:
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres-dwh:5432/airflow_db
+    - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFfiuQUnKGqpCHtRI=
+    - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+    - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth
+    - PYTHONPATH=/opt/airflow
+    - OPENAQ_API_KEY=${OPENAQ_API_KEY:-}
+    - OPENAQ_BASE_URL=${OPENAQ_BASE_URL:-https://api.openaq.org/v3}
+    - TARGET_COUNTRY_ISO=${TARGET_COUNTRY_ISO:-VN}
+    - S3_ENDPOINT_URL=http://minio:9000
+    - S3_ACCESS_KEY=${S3_ACCESS_KEY:-minioadmin}
+    - S3_SECRET_KEY=${S3_SECRET_KEY:-minioadmin}
+    - S3_BUCKET_NAME=${S3_BUCKET_NAME:-openaq-data-lake}
+    - S3_REGION=${S3_REGION:-us-east-1}
+    - S3_USE_SSL=False
+    - DWH_DB_HOST=postgres-dwh
+    - DWH_DB_PORT=5432
+    - DWH_DB_NAME=openaq_dw
+    - DWH_DB_USER=postgres
+    - DWH_DB_PASSWORD=postgres
+    - _PIP_ADDITIONAL_REQUIREMENTS=${_PIP_ADDITIONAL_REQUIREMENTS:-scikit-learn>=1.4.0 fastparquet>=2024.2.0 pyarrow>=15.0.0}
+  volumes:
+    - ../dags:/opt/airflow/dags
+    - ../src:/opt/airflow/src
+    - ../sql:/opt/airflow/sql
+    - ../logs:/opt/airflow/logs
+    - ../config:/opt/airflow/config
+    - ../requirements.txt:/opt/airflow/requirements.txt
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres-dwh:
+      condition: service_healthy
+    minio:
+      condition: service_started
+
+services:
+  # 1. MinIO: Object Storage (S3-compatible)
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: openaq_minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: always
+
+  # MinIO Bucket Auto-creator
+  minio-init:
+    image: cgr.dev/chainguard/minio-client:latest-dev
+    container_name: openaq_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set myminio http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin}; do
+        echo 'Dang cho MinIO khoi dong...';
+        sleep 2;
+      done;
+      /usr/bin/mc mb myminio/${S3_BUCKET_NAME:-openaq-data-lake} || true;
+      echo 'Da khoi tao bucket: ${S3_BUCKET_NAME:-openaq-data-lake}';
+      exit 0;
+      "
+
+  # 2. PostgreSQL: Data Warehouse + Airflow Metadata DB
+  postgres-dwh:
+    image: postgres:15-alpine
+    container_name: openaq_postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=openaq_dw,airflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../sql/create_tables.sql:/docker-entrypoint-initdb.d/02_create_tables.sql
+      - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/01_init_dbs.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: always
+
+  # 3. Airflow Init
+  airflow-init:
+    <<: *airflow-common
+    container_name: openaq_airflow_init
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        pip install -r /opt/airflow/requirements.txt --no-warn-script-location
+        airflow db migrate
+        airflow users create --username ${_AIRFLOW_WWW_USER_USERNAME:-airflow} --password ${_AIRFLOW_WWW_USER_PASSWORD:-airflow} --firstname Airflow --lastname Admin --role Admin --email admin@example.com || true
+    restart: on-failure
+
+  # 4. Airflow Webserver
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: openaq_airflow_webserver
+    command: webserver
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8082}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # 5. Airflow Scheduler
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: openaq_airflow_scheduler
+    command: scheduler
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # 6. Apache Superset
+  superset:
+    image: apache/superset:3.0.2
+    container_name: openaq_superset
+    environment:
+      - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY:-openaq_superset_secret_key_change_in_production}
+      - DATABASE_DIALECT=postgresql
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_HOST=postgres-dwh
+      - DATABASE_PORT=5432
+      - DATABASE_DB=openaq_dw
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres-dwh:
+        condition: service_healthy
+    volumes:
+      - superset_home:/app/superset_home
+    restart: always
+
+  # 7. Custom Dark Mode Web Dashboard (Air Quality Monitoring Vietnam)
+  web-dashboard:
+    image: apache/airflow:2.8.1-python3.10
+    container_name: openaq_web_dashboard
+    environment:
+      - PYTHONPATH=/opt/airflow
+      - POSTGRES_HOST=postgres-dwh
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=openaq_dw
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - DASHBOARD_PORT=8050
+    entrypoint: ["python", "-m", "src.dashboard.app"]
+    ports:
+      - "8050:8050"
+    volumes:
+      - ../src:/opt/airflow/src
+      - ../config:/opt/airflow/config
+    depends_on:
+      postgres-dwh:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  minio_data:
+  postgres_data:
+  superset_home:
