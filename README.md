@@ -1,164 +1,165 @@
 # He thong Data Warehouse va ETL phan tich chat luong khong khi tu OpenAQ
 
 ## 1. Gioi thieu de tai
-Du an xay dung he thong Data Warehouse va quy trinh ETL nham thu thap, lam sach, tinh toan chi so chat luong khong khi (AQI theo chuan US EPA), luu tru du lieu lich su va phuc vu phan tich chuyen sau (thong ke mo ta, phat hien bat thuong, phan cum tram do, du doan o nhiem khong khi, truc quan hoa tren Power BI va Apache Superset).
+Du an xay dung he thong Data Warehouse va quy trinh ETL nham thu thap, lam sach, tinh toan chi so chat luong khong khi (AQI theo chuan US EPA), luu tru du lieu lich su va phuc vu phan tich chuyen sau (thong ke mo ta, phat hien bat thuong, phan cum tram do, du doan o nhiem khong khi, truc quan hoa tren Power BI, Apache Superset va Web Dashboard Dark Mode).
 
-Nguon du lieu chinh: OpenAQ REST API v3 (tap trung khu vuc Viet Nam - ma quoc gia VN).
+- Nguon du lieu chinh: OpenAQ REST API v3 (tap trung khu vuc Viet Nam - ma quoc gia VN gom 12 tram quan trac tieu bieu tai 11 tinh/thanh pho lon: Ha Noi, TP. HCM, Da Nang, Hai Phong, Bien Hoa, Bac Ninh, Vinh, Thai Nguyen, Can Tho, Nha Trang, Da Lat).
+- 6 thong so giam sat: PM2.5, PM10, O3, NO2, SO2, CO.
 
 ---
 
 ## 2. Kien truc tong the
 
 ```
-[OpenAQ REST API v3]
-         |
-    (Airflow DAG)
-         v
-[Amazon S3 / MinIO (Raw JSON)]
-         |
-    (Transform: 7 buoc lam sach + tinh AQI)
-         v
-[Amazon S3 / MinIO (Processed Parquet)]
-         |
-    (Load: Staging -> Dimensions -> Fact)
-         v
+[OpenAQ REST API v3 / Sensor Fallback]
+                  |
+            (Airflow DAG)
+                  v
+    [MinIO / S3 Raw Data Lake]
+      (raw/openaq/YYYY/MM/DD/)
+                  |
+     (Transform: 7 buoc lam sach + tinh AQI)
+                  v
+  [MinIO / S3 Processed Data Lake]
+  (measurements_cleaned.parquet)
+                  |
+     (Load: Staging -> Dimensions -> Fact)
+                  v
 [Data Warehouse (PostgreSQL - Star Schema)]
-         |
-    +----+---------------------------+
-    |                                |
-    v                                v
-[Phan tich & Khai pha (ML)]    [Truc quan hoa (Dashboard)]
-- Thong ke mo ta               - Power BI (analytics/air_quality_dashboard.pbix)
-- Phat hien bat thuong (Z-score) - Apache Superset
-- Phan cum K-Means (Silhouette)
-- Du doan chuoi thoi gian
-- Khai pha mau hinh (Patterns)
+                  |
+    +-------------+-------------+
+    |                           |
+    v                           v
+[Phan tich & Machine Learning] [Truc quan hoa & Dashboard]
+- Phat hien bat thuong (Z-score) - Web Dashboard Dark Mode (Port 8050)
+- Phan cum K-Means (Silhouette)   - Apache Superset (Port 8088)
+- Khai pha mau o nhiem (Heatmap)  - Power BI (air_quality_dashboard.pbix)
+- Du bao PM2.5 (Random Forest)
 ```
 
 ---
 
-## 3. Mo hinh Data Warehouse (Star Schema)
+## 3. Danh muc cong ket noi & Duong dan dich vu
 
-- Bang Staging:
-  - `staging_measurement`: Bang tam tiep nhan toan bo du lieu sau buoc transform de chuan bi nap vao kho du lieu.
-- Cac bang Dimension:
-  - `dim_time`: Khai thac cac chieu thoi gian (nam, quy, thang, ngay, gio, thu trong tuan, mua).
-  - `dim_location`: Thong tin tram do, toa do dia ly (vi do, kinh do), thanh pho, quoc gia, mui gio.
-  - `dim_parameter`: Danh muc thong so do luong (PM2.5, PM10, O3, NO2, SO2, CO kem don vi do).
-- Bang Fact:
-  - `fact_measurement`: Luu tru nong do do luong, chi so AQI tinh toan, phan nhom muc do o nhiem, co danh dau bat thuong (`is_anomaly`), diem bat thuong (`anomaly_score`), phuong phap (`anomaly_method`).
-- Cac bang ket qua ML:
-  - `ml_station_cluster_result`: Luu ket qua phan cum tram do qua tung dot chay.
-  - `ml_forecast_run`: Nhat ky chay huan luyen va danh gia mo hinh du bao.
-  - `ml_forecast_prediction`: Luu gia tri du doan tuong lai kem gia tri thuc te.
-  - `ml_pattern_mining_result`: Luu thong tin chu ky theo gio, ngay trong tuan va cac dot o nhiem dot bien.
+| Dich vu / He thong | Duong dan truy cap (URL / Host) | Cong (Port) | Tai khoan / Mat khau | Muc dich su dung |
+| :--- | :--- | :---: | :--- | :--- |
+| **Web Dashboard (Dark Mode)** | `http://localhost:8050` | `8050` | Khong yeu cau (truy cap truc tiep) | Giao dien giam sat chat luong khong khi Viet Nam luoi 2x2, ban do SVG co Hoang Sa & Truong Sa, duong du bao PM2.5 va bang canh bao bat thuong. |
+| **Apache Superset** | `http://localhost:8088/superset/dashboard/openaq-air-quality-dashboard/` | `8088` | `admin` / `admin` | Dashboard BI quan tri 4 tabs (Tong quan, Xu huong, Vi tri, Du bao & canh bao) da duoc tich hop CSS Dark Mode. |
+| **Apache Airflow Web UI** | `http://localhost:8082` | `8082` | `airflow` / `airflow` | Giao dien quan ly lich trinh, theo doi trang thai va kich hoat pipeline `openaq_pipeline_dag`. |
+| **MinIO Console (S3 Web UI)** | `http://localhost:9001` | `9001` | `minioadmin` / `minioadmin` | Giao dien quan ly S3 Data Lake (xem cac bucket `raw/` va `processed/`). |
+| **MinIO S3 API Endpoint** | `http://localhost:9000` | `9000` | Access/Secret: `minioadmin` / `minioadmin` | Cong API S3 cho ma nguon Python va Airflow doc ghi du lieu. |
+| **PostgreSQL Data Warehouse** | `localhost:5432` | `5432` | User/Pass: `postgres` / `postgres`<br>Database: `openaq_dw` | Kho du lieu DWH Star Schema (fact_measurement, dim_*, bang ML va 14 views). |
+| **PostgreSQL Airflow DB** | `localhost:5432` | `5432` | User/Pass: `postgres` / `postgres`<br>Database: `airflow_db` | Co so du lieu metadata noi bo cua Airflow. |
 
 ---
 
-## 4. Quy trinh xu ly du lieu (7 buoc Transform)
+## 4. Huong dan trien khai nhanh cho nguoi moi (Quick Start)
 
-1. Loai bo trung lap (Remove duplicate): Khu cac ban ghi trung lap tren bo khoa tu nhien (tram do, thong so, thoi diem do).
-2. Xu ly gia tri thieu (Handle missing value): Loai bo hoac hieu chinh cac ban ghi thieu moc thoi gian hoac gia tri nong do.
-3. Kiem tra tinh hop le (Validate measurement): Loai bo gia tri am, loc cac gia tri do vuot nguong vat ly bat thuong, danh dau cam bien nghi ngo loi.
-4. Chuyen doi kieu du lieu (Convert datatype): Ep kieu chuan xac cho moc thoi gian (timestamp), so thuc (float), ma dinh danh (integer).
-5. Chuan hoa vi tri (Normalize location): Chuan hoa ten thanh pho, quoc gia, kiem tra tinh hop le cua toa do dia ly (vi do [-90, 90], kinh do [-180, 180]).
-6. Dong bo mui gio (Convert timezone): Luu tru moc thoi gian chuan UTC va tinh toan thoi gian dia phuong (`Asia/Ho_Chi_Minh`).
-7. Tinh toan chi so AQI va phan nhom (Calculate AQI / Category): Ap dung cong thuc noi suy tuyen tinh chuan US EPA cho tung chat do va phan nhom chat luong khong khi (Tot, Trung binh, Kem, Xau, Rat xau, Nguy hai).
+De nguoi khac co the clone ve va chay toan bo he thong tren may cua ho, thuc hien theo 4 buoc sau:
 
----
+### Buoc 1: Clone ma nguon va chuyen sang nhanh moi nhat
+```bash
+git clone https://github.com/KazuTTL/OpenAQ-Project.git
+cd OpenAQ-Project
+git checkout feat/unified-pipeline-dashboard
+```
 
-## 5. Huong dan cai dat va van hanh
+### Buoc 2: Khoi tao file cau hinh moi truong
+- Tren Windows PowerShell:
+```powershell
+Copy-Item .env.example .env
+```
+- Tren Linux / macOS:
+```bash
+cp .env.example .env
+```
+*(Luu y: Neu chua co OpenAQ API Key, he thong tu dong chuyen sang co che Sensor Fallback de sinh du lieu chuan 12 tram Viet Nam).*
 
-### 5.1 Khoi dong ha tang dich vu (Docker Compose)
-
-Khoi dong dong thoi MinIO, PostgreSQL, Airflow va Superset bang lenh:
-
+### Buoc 3: Khoi dong ha tang Docker
+Yeu cau da bat san Docker Desktop tren may:
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+Lenh nay se khoi dong dong thoi 6 containers: `openaq_postgres`, `openaq_minio`, `openaq_airflow_init`, `openaq_airflow_scheduler`, `openaq_airflow_webserver`, `openaq_web_dashboard` va `openaq_superset`.
 
-Thong tin cong ket noi cac dich vu:
-- MinIO S3 API: http://localhost:9000 (Tai khoan/Mat khau: minioadmin / minioadmin)
-- MinIO Web Console: http://localhost:9001
-- Airflow Webserver: http://localhost:8082 (Tai khoan/Mat khau: airflow / airflow)
-- PostgreSQL Data Warehouse: localhost:5432 (Co so du lieu: openaq_dw / airflow_db, Tai khoan/Mat khau: postgres / postgres)
-- Apache Superset: http://localhost:8088 (Tai khoan/Mat khau: admin / admin)
-
-### 5.2 Cai dat thu vien Python moi truong cuc bo
-
+### Buoc 4: Chay Pipeline nap du lieu va mo Dashboard
+1. Chay toan bo quy trinh ETL va AI/ML:
 ```bash
-pip install -r requirements.txt
+docker exec openaq_airflow_scheduler python -m src.pipeline
 ```
+2. Mo trinh duyet va su dung:
+- Web Dashboard Dark Mode: `http://localhost:8050`
+- Apache Superset Dashboard: `http://localhost:8088` (neu su dung Superset lan dau, chay `python analytics/setup_superset_dashboard.py` de tu dong tao toan bo bieu do va dashboard).
+- Airflow UI: `http://localhost:8082`
 
-### 5.3 Chay kiem thu toan bo duong ong ETL va ML tu Terminal
+---
 
-```bash
-python -m src.pipeline
-```
+## 5. Quy trinh xu ly du lieu (7 buoc Transform)
 
-Lenh tren se tu dong thuc thi:
-- Phase 1: Thu thap du lieu OpenAQ (Extract) va ghi JSON len MinIO Raw.
-- Phase 2: Xu ly 7 buoc (Transform) va ghi Parquet len MinIO Processed.
-- Phase 3: Nap du lieu vao Data Warehouse (Load vao Staging -> Dimension -> Fact).
-- Phase 4: Chay pipeline ML Analytics (Phat hien bat thuong, Phan cum K-Means, Du bao PM2.5, Luu ket qua vao CSDL).
+1. **Remove Duplicate**: Loai bo trung lap hoan toan tren bo khoa tu nhien (tram, thong so, thoi gian).
+2. **Handle Missing**: Xu ly cac ban ghi thieu thoi gian hoac thieu gia tri do.
+3. **Validate Measurement**: Loai bo gia tri am, loc cac gia tri vuot nguong vat ly, danh dau loi cam bien.
+4. **Data Quality Validation**: Xuat bao cao thong ke chat luong du lieu.
+5. **Normalize Location**: Chuan hoa ten thanh pho, kiem tra toa do vi do `[-90, 90]` va kinh do `[-180, 180]`.
+6. **Convert Timezone**: Dong bo gio UTC va tinh toan `local_datetime` (UTC+7 cho Viet Nam).
+7. **Calculate AQI**: Tinh chi so chat luong khong khi (AQI) va phan cap muc do o nhiem theo cong thuc tieu chuan US EPA.
 
-### 5.4 Chay kiem thu bo Unit Tests
+---
 
+## 6. Mo hinh Data Warehouse (Star Schema)
+
+- **Bang Staging**: `staging_measurement` tiep nhan du lieu sau transform.
+- **Cac bang Dimension**:
+  - `dim_time`: Cac chieu thoi gian (nam, quy, thang, ngay, gio, thu, mua).
+  - `dim_location`: Tram do, toa do vi do, kinh do, thanh pho, quoc gia, mui gio.
+  - `dim_parameter`: Danh muc 6 thong so do luong (PM2.5, PM10, O3, NO2, SO2, CO kem don vi).
+- **Bang Fact**:
+  - `fact_measurement`: Luu tru gia tri do, chi so AQI, phan cap o nhiem, co danh dau bat thuong (`is_anomaly`), diem bat thuong (`anomaly_score`), phuong phap (`anomaly_method`).
+- **Cac bang ML & Views**:
+  - `ml_station_cluster_result`: Ket qua phan cum K-Means tram do.
+  - `ml_pollution_pattern`: Ket qua khai pha mau gio, ngay va dot o nhiem keo dai.
+  - 14 Views phan tich SQL toi uu cho BI va Dashboard: `vw_fact_enriched`, `vw_kpi_overview`, `vw_pollution_category_dist`, `vw_pollutant_aqi_avg`, `vw_city_top10_aqi`, `vw_city_hourly_heatmap`, `vw_city_pm25_hourly`, `vw_station_map`, `vw_station_ranking`, `vw_anomaly_formatted`, `vw_ml_station_clusters`...
+
+---
+
+## 7. Chay kiem thu (Unit Tests)
+
+Chay toan bo 38 bai kiem thu don vi cho ca tang ETL va Machine Learning:
 ```bash
 python -m unittest discover tests
 ```
 
-### 5.5 Truc quan hoa Dashboard
-
-1. **Power BI**:
-   - Mo file `analytics/air_quality_dashboard.pbix` bang Power BI Desktop.
-   - Ket noi toi co so du lieu PostgreSQL DWH (`localhost:5432`, database: `openaq_dw`).
-   - Tham khao cac cau truy van mau trong file `analytics/queries.sql`.
-
-2. **Apache Superset**:
-   - Truy cap http://localhost:8088.
-   - Ket noi Database DWH voi connection string:
-     `postgresql://postgres:postgres@postgres-dwh:5432/openaq_dw`
-   - Su dung cac query trong `sql/analysis_queries.sql` de tao bieu do.
-
 ---
 
-## 6. Cau truc thu muc du an
+## 8. Cau truc thu muc ma nguon
 
 ```
 OpenAQ-Project-Unified/
 |-- analytics/                     # Tai nguyen truc quan hoa Dashboard
 |   |-- air_quality_dashboard.pbix # File Dashboard Power BI
-|   `-- queries.sql                # Truy van SQL phuc vu bao cao
+|   |-- queries.sql                # Truy van SQL phuc vu Power BI
+|   `-- setup_superset_dashboard.py# Script tu dong hoa tao Dashboard tren Superset
 |-- dags/                          # Airflow DAGs dinh ky
 |   `-- openaq_pipeline_dag.py     # DAG dieu phoi Extract -> Transform -> Load -> ML
 |-- docker/
-|   |-- docker-compose.yml         # Cau hinh container (MinIO, Postgres, Airflow, Superset)
+|   |-- docker-compose.yml         # Cau hinh toan bo containers (Postgres, MinIO, Airflow, Superset, Web Dashboard)
 |   `-- init-multiple-dbs.sh       # Script khoi tao nhieu database trong Postgres
 |-- sql/
-|   |-- create_tables.sql          # DDL khoi tao Star Schema DWH va cac bang ML
-|   |-- analysis_queries.sql       # Cac cau truy van phan tich cho Superset
-|   `-- migrations/                # Cac script nang cap co so du lieu
-|       |-- 001_add_anomaly_metadata.sql
-|       `-- 002_add_ml_result_tables.sql
+|   |-- create_tables.sql          # DDL khoi tao Star Schema DWH, bang ML va 14 Views
+|   |-- analysis_queries.sql       # Cac cau truy van phan tich chuyen sau
+|   `-- migrations/                # Cac script cap nhat co so du lieu
 |-- src/
-|   |-- extract/                   # Thu thap OpenAQ API va luu tru MinIO/S3 Raw
-|   |-- transform/                 # 7 buoc lam sach du lieu va tinh AQI (US EPA)
-|   |-- load/                      # Nap du lieu Staging, Dimension, Fact
-|   |-- analysis/                  # Phat hien bat thuong, Phan cum, Du bao, Luu ket qua
-|   |   |-- analytics_runner.py    # Dieu phoi toan bo tien trinh ML
-|   |   |-- anomaly_detection.py   # Z-score, IQR, Rolling MAD
-|   |   |-- clustering.py          # K-Means danh gia Silhouette
-|   |   |-- forecasting.py         # Du bao chuoi thoi gian (Lag, Rolling, RF)
-|   |   |-- pattern_mining.py      # Khai pha mau hinh gio va chu ky tuan
-|   |   |-- result_store.py        # Luu ket qua ML vao PostgreSQL
-|   |   |-- statistics.py          # Thong ke mo ta va xep hang tram
-|   |   `-- data_validation.py     # Kiem tra chat luong du lieu dau vao cho ML
-|   `-- utils/                     # Ket noi CSDL, MinIO, cau hinh, ghi nhat ky
-|-- tests/                         # Bo kiem thu don vi (Unit Tests cho ETL & ML)
-|-- Implement/                     # Tai lieu tien do va nhat ky cac phien lam viec
+|   |-- extract/                   # Thu thap OpenAQ API v3 va ghi MinIO Raw
+|   |-- transform/                 # 7 buoc lam sach du lieu va tinh AQI US EPA
+|   |-- load/                      # Nap du lieu Staging, Dimensions, Fact
+|   |-- analysis/                  # Phan he AI/ML: Anomaly Detection, K-Means, Pattern Mining, Forecast
+|   |-- dashboard/                 # Web Dashboard Dark Mode (app.py & template.html)
+|   |-- utils/                     # Ket noi CSDL, MinIO, cau hinh, ghi log
+|   `-- pipeline.py                # File dieu phoi toan bo luong thuc thi
+|-- tests/                         # 38 bo kiem thu don vi (Unit Tests cho ETL & ML)
+|-- Implement/                     # Nhat ky va tien do trien khai tung phien
+|-- PROJECT_OVERVIEW.md            # Tai lieu tong quan toan bo kien truc du an
 |-- requirements.txt               # Danh sach thu vien tong hop
 |-- .env.example                   # Mau bien moi truong
-|-- .env                           # File bien moi truong thuc te
 `-- README.md                      # Tai lieu huong dan du an
 ```
