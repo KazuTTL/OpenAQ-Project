@@ -83,8 +83,10 @@ class OpenAQClient:
         iso: Optional[str] = None,
         limit: int = 100,
         max_pages: Optional[int] = None,
-        use_mock_fallback: bool = True,
+        use_mock_fallback: Optional[bool] = None,
     ) -> List[Dict[str, Any]]:
+        if use_mock_fallback is None:
+            use_mock_fallback = settings.OPENAQ_ALLOW_MOCK
         iso_code = iso or settings.TARGET_COUNTRY_ISO
         all_locations = []
         page = 1
@@ -119,6 +121,15 @@ class OpenAQClient:
                 return self._generate_mock_locations()
             raise
 
+    def get_location_by_id(self, location_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            data = self._request_with_retry(f"locations/{location_id}")
+            results = data.get("results", [])
+            return results[0] if results else None
+        except Exception as e:
+            logger.warning(f"Loi khi lay thong tin location {location_id}: {e}")
+            return None
+
     def get_sensor_hours(
         self,
         sensor_id: int,
@@ -126,8 +137,10 @@ class OpenAQClient:
         datetime_to: Optional[str] = None,
         limit: int = 100,
         max_pages: Optional[int] = 10,
-        use_mock_fallback: bool = True,
+        use_mock_fallback: Optional[bool] = None,
     ) -> List[Dict[str, Any]]:
+        if use_mock_fallback is None:
+            use_mock_fallback = settings.OPENAQ_ALLOW_MOCK
         try:
             all_measurements = []
             page = 1

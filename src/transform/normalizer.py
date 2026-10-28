@@ -20,6 +20,12 @@ class DataNormalizer:
             df["country"] = df["country"].fillna("Vietnam").astype(str).str.strip()
         if "location_name" in df.columns:
             df["location_name"] = df["location_name"].fillna("Unknown Location").astype(str).str.strip()
+        if "country_code" in df.columns:
+            df["country_code"] = df["country_code"].fillna("VN").astype(str).str.strip().str.upper()
+        if "region" in df.columns:
+            df["region"] = df["region"].fillna("Unknown Region").astype(str).str.strip()
+        if "data_source" in df.columns:
+            df["data_source"] = df["data_source"].fillna("openaq").astype(str).str.strip()
 
         # 2. Kiem tra tinh hop le cua toa do (Latitude: -90 den 90, Longitude: -180 den 180)
         if "latitude" in df.columns:

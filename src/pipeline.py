@@ -2,10 +2,12 @@ import json
 import time
 from datetime import datetime, timedelta
 import pandas as pd
-from typing import Optional
+import yaml
+from typing import Optional, List, Dict, Any
 from src.utils.config import settings
 from src.utils.logger import get_logger
 from src.extract.openaq_client import OpenAQClient
+from src.extract.weather_client import WeatherClient
 from src.extract.s3_writer import S3Writer
 from src.transform.cleaner import DataCleaner
 from src.transform.normalizer import DataNormalizer
@@ -20,12 +22,14 @@ logger = get_logger("PipelineOrchestrator")
 class OpenAQPipeline:
     def __init__(self):
         self.client = OpenAQClient()
+        self.weather_client = WeatherClient()
         self.s3_writer = S3Writer()
+        self._location_cache: Dict[int, Dict[str, Any]] = {}
 
     def run_extract(
         self,
         target_date: Optional[str] = None,
-        max_locations: Optional[int] = 20,
+        max_locations: Optional[int] = None,
         days_back: int = 1,
     ) -> dict:
         if target_date:
@@ -42,101 +46,205 @@ class OpenAQPipeline:
         year, month, day = date_str.split("-")
         logger.info(f"=== [PHASE 1: EXTRACT] Bat dau thu thap du lieu OpenAQ cho ngay {date_str} ===")
 
-        # 1. Lay danh sach locations
-        locations = self.client.get_locations(iso=settings.TARGET_COUNTRY_ISO, limit=settings.DEFAULT_LIMIT)
-        if max_locations and len(locations) > max_locations:
-            locations = locations[:max_locations]
-
-        s3_locations_key = f"raw/openaq/{year}/{month}/{day}/locations.json"
-        self.s3_writer.upload_raw_json(locations, s3_locations_key)
-        logger.info(f"Da luu {len(locations)} tram vao S3 raw: {s3_locations_key}")
-
-        # 2. Lay measurements theo tung sensor cua tung location
         measurements_records = []
-        for loc in locations:
-            loc_id = loc.get("id")
-            loc_name = loc.get("name")
-            city = loc.get("locality") or loc.get("name")
-            country = loc.get("country", {}).get("name", "Vietnam")
-            coords = loc.get("coordinates", {})
-            lat = coords.get("latitude") if coords else None
-            lon = coords.get("longitude") if coords else None
-            timezone = loc.get("timezone", "Asia/Ho_Chi_Minh")
+        locations_meta = []
 
-            sensors = loc.get("sensors", [])
-            for sensor in sensors:
-                sensor_id = sensor.get("id")
-                param_info = sensor.get("parameter", {})
-                param_name = param_info.get("name")
-                unit = param_info.get("units")
+        # 1. Kiem tra danh muc cities.yaml
+        cities_cfg_file = getattr(settings, "CITIES_CONFIG_PATH", None)
+        use_cities_registry = cities_cfg_file and cities_cfg_file.exists()
 
-                # Uu tien lay du lieu hourly precomputed vi on dinh va nhanh hon
-                time.sleep(0.15)
-                try:
-                    records = self.client.get_sensor_hours(
-                        sensor_id=sensor_id,
-                        datetime_from=dt_from,
-                        datetime_to=dt_to,
-                        limit=100,
-                        max_pages=2,
-                    )
-                    if not records:
-                        records = self.client.get_sensor_hours(
-                            sensor_id=sensor_id,
-                            limit=100,
-                            max_pages=1,
-                        )
-                except Exception as e:
-                    logger.warning(f"Khong the lay hourly data cho sensor {sensor_id}: {e}. Thu measurements raw...")
+        if use_cities_registry:
+            logger.info(f"Doc danh muc 20 thanh pho tu {cities_cfg_file}...")
+            with open(cities_cfg_file, "r", encoding="utf-8") as f:
+                registry = yaml.safe_load(f)
+
+            station_targets = []
+            for city_item in registry.get("cities", []):
+                c_name = city_item["city_name"]
+                c_code = city_item["country_code"]
+                c_country = city_item.get("country_name", "Việt Nam" if c_code == "VN" else "Thái Lan")
+                c_region = city_item["region"]
+                for stn in city_item.get("stations", []):
+                    station_targets.append({
+                        "station_id": stn["station_id"],
+                        "station_name": stn["station_name"],
+                        "city": c_name,
+                        "country": c_country,
+                        "country_code": c_code,
+                        "region": c_region,
+                        "latitude": stn["latitude"],
+                        "longitude": stn["longitude"],
+                        "timezone": "Asia/Ho_Chi_Minh" if c_code == "VN" else "Asia/Bangkok",
+                    })
+
+            if max_locations and len(station_targets) > max_locations:
+                station_targets = station_targets[:max_locations]
+
+            logger.info(f"Bat dau thu thap cho {len(station_targets)} tram quan trac thuc te...")
+
+            for target in station_targets:
+                loc_id = target["station_id"]
+                loc_name = target["station_name"]
+                city = target["city"]
+                country = target["country"]
+                c_code = target["country_code"]
+                region = target["region"]
+                lat = target["latitude"]
+                lon = target["longitude"]
+                timezone = target["timezone"]
+
+                if loc_id not in self._location_cache:
+                    time.sleep(0.15)
+                    loc_detail = self.client.get_location_by_id(loc_id)
+                    if loc_detail:
+                        self._location_cache[loc_id] = loc_detail
+                loc_detail = self._location_cache.get(loc_id, {})
+                sensors = loc_detail.get("sensors", [])
+
+                locations_meta.append({
+                    "id": loc_id,
+                    "name": loc_name,
+                    "city": city,
+                    "country": country,
+                    "country_code": c_code,
+                    "region": region,
+                    "coordinates": {"latitude": lat, "longitude": lon},
+                    "sensors_count": len(sensors),
+                })
+
+                # Lay du lieu khi tuong Open-Meteo
+                start_d = dt_from[:10]
+                end_d = dt_to[:10]
+                self.weather_client.get_hourly_weather(lat, lon, start_d, end_d)
+
+                for sensor in sensors:
+                    sensor_id = sensor.get("id")
+                    param_info = sensor.get("parameter", {})
+                    param_name = param_info.get("name")
+                    unit = param_info.get("units")
+
+                    time.sleep(0.15)
                     try:
-                        records = self.client.get_sensor_raw_measurements(
+                        records = self.client.get_sensor_hours(
                             sensor_id=sensor_id,
                             datetime_from=dt_from,
                             datetime_to=dt_to,
                             limit=100,
-                            max_pages=1,
+                            max_pages=2,
                         )
-                        if not records:
-                            records = self.client.get_sensor_raw_measurements(
-                                sensor_id=sensor_id,
-                                limit=100,
-                                max_pages=1,
-                            )
-                    except Exception as e2:
-                        logger.warning(f"Bo qua sensor {sensor_id}: {e2}")
+                    except Exception as e:
+                        logger.warning(f"Loi goi hourly sensor {sensor_id}: {e}")
                         continue
 
-                for rec in records:
-                    # Chuan hoa thoi gian theo format OpenAQ v3
-                    # Neu la endpoint /hours: rec nam trong 'period' -> 'datetimeFrom' -> 'utc'
-                    # Neu la endpoint /measurements: rec nam trong 'datetime' -> 'utc'
-                    dt_utc = None
-                    dt_local = None
-                    if isinstance(rec.get("datetime"), dict):
-                        dt_utc = rec["datetime"].get("utc")
-                        dt_local = rec["datetime"].get("local")
-                    elif isinstance(rec.get("period"), dict):
-                        p_from = rec["period"].get("datetimeFrom", {})
-                        if isinstance(p_from, dict):
-                            dt_utc = p_from.get("utc")
-                            dt_local = p_from.get("local")
+                    for rec in records:
+                        dt_utc = None
+                        dt_local = None
+                        if isinstance(rec.get("datetime"), dict):
+                            dt_utc = rec["datetime"].get("utc")
+                            dt_local = rec["datetime"].get("local")
+                        elif isinstance(rec.get("period"), dict):
+                            p_from = rec["period"].get("datetimeFrom", {})
+                            if isinstance(p_from, dict):
+                                dt_utc = p_from.get("utc")
+                                dt_local = p_from.get("local")
 
-                    val = rec.get("value")
-                    if dt_utc and val is not None:
-                        measurements_records.append({
-                            "source_location_id": loc_id,
-                            "location_name": loc_name,
-                            "city": city,
-                            "country": country,
-                            "latitude": lat,
-                            "longitude": lon,
-                            "timezone": timezone,
-                            "parameter_name": param_name,
-                            "unit": unit,
-                            "value": val,
-                            "datetime_utc": dt_utc,
-                            "local_datetime": dt_local,
-                        })
+                        val = rec.get("value")
+                        if dt_utc and val is not None:
+                            temp, hum = self.weather_client.get_weather_for_timestamp(lat, lon, dt_utc)
+                            measurements_records.append({
+                                "source_location_id": loc_id,
+                                "location_name": loc_name,
+                                "city": city,
+                                "country": country,
+                                "country_code": c_code,
+                                "region": region,
+                                "data_source": "openaq",
+                                "latitude": lat,
+                                "longitude": lon,
+                                "timezone": timezone,
+                                "parameter_name": param_name,
+                                "unit": unit,
+                                "value": val,
+                                "datetime_utc": dt_utc,
+                                "local_datetime": dt_local,
+                                "temperature": temp,
+                                "humidity": hum,
+                            })
+
+        else:
+            # Fallback co che cu neu khong tim thay file cities.yaml
+            locations = self.client.get_locations(iso=settings.TARGET_COUNTRY_ISO, limit=settings.DEFAULT_LIMIT)
+            if max_locations and len(locations) > max_locations:
+                locations = locations[:max_locations]
+
+            locations_meta = locations
+            for loc in locations:
+                loc_id = loc.get("id")
+                loc_name = loc.get("name")
+                city = loc.get("locality") or loc.get("name")
+                country = loc.get("country", {}).get("name", "Vietnam")
+                coords = loc.get("coordinates", {})
+                lat = coords.get("latitude") if coords else None
+                lon = coords.get("longitude") if coords else None
+                timezone = loc.get("timezone", "Asia/Ho_Chi_Minh")
+
+                sensors = loc.get("sensors", [])
+                for sensor in sensors:
+                    sensor_id = sensor.get("id")
+                    param_info = sensor.get("parameter", {})
+                    param_name = param_info.get("name")
+                    unit = param_info.get("units")
+
+                    time.sleep(0.15)
+                    try:
+                        records = self.client.get_sensor_hours(
+                            sensor_id=sensor_id,
+                            datetime_from=dt_from,
+                            datetime_to=dt_to,
+                            limit=100,
+                            max_pages=2,
+                        )
+                    except Exception:
+                        records = []
+
+                    for rec in records:
+                        dt_utc = None
+                        dt_local = None
+                        if isinstance(rec.get("datetime"), dict):
+                            dt_utc = rec["datetime"].get("utc")
+                            dt_local = rec["datetime"].get("local")
+                        elif isinstance(rec.get("period"), dict):
+                            p_from = rec["period"].get("datetimeFrom", {})
+                            if isinstance(p_from, dict):
+                                dt_utc = p_from.get("utc")
+                                dt_local = p_from.get("local")
+
+                        val = rec.get("value")
+                        if dt_utc and val is not None:
+                            temp, hum = self.weather_client.get_weather_for_timestamp(lat, lon, dt_utc) if lat and lon else (None, None)
+                            measurements_records.append({
+                                "source_location_id": loc_id,
+                                "location_name": loc_name,
+                                "city": city,
+                                "country": country,
+                                "country_code": "VN",
+                                "region": "Vietnam",
+                                "data_source": "openaq",
+                                "latitude": lat,
+                                "longitude": lon,
+                                "timezone": timezone,
+                                "parameter_name": param_name,
+                                "unit": unit,
+                                "value": val,
+                                "datetime_utc": dt_utc,
+                                "local_datetime": dt_local,
+                                "temperature": temp,
+                                "humidity": hum,
+                            })
+
+        s3_locations_key = f"raw/openaq/{year}/{month}/{day}/locations.json"
+        self.s3_writer.upload_raw_json(locations_meta, s3_locations_key)
+        logger.info(f"Da luu {len(locations_meta)} tram vao S3 raw: {s3_locations_key}")
 
         s3_meas_key = f"raw/openaq/{year}/{month}/{day}/measurements_raw.json"
         self.s3_writer.upload_raw_json(measurements_records, s3_meas_key)
@@ -201,12 +309,13 @@ class OpenAQPipeline:
     def run_full_pipeline(
         self,
         target_date: Optional[str] = None,
-        max_locations: Optional[int] = 20,
-        with_ml: bool = True,
+        max_locations: Optional[int] = None,
+        days_back: int = 1,
+        with_ml: bool = False,
     ) -> dict:
         date_str = target_date or datetime.utcnow().strftime("%Y-%m-%d")
         logger.info(f">>> KHOI DONG PIPELINE OPENAQ NGAY {date_str} <<<")
-        extract_res = self.run_extract(target_date=date_str, max_locations=max_locations)
+        extract_res = self.run_extract(target_date=date_str, max_locations=max_locations, days_back=days_back)
         s3_processed_key = self.run_transform(extract_res["measurements_key"], target_date=date_str)
         load_res = self.run_load(s3_processed_key)
 

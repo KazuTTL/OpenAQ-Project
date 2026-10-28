@@ -18,6 +18,8 @@ class Settings:
     OPENAQ_BASE_URL: str = os.getenv("OPENAQ_BASE_URL", "https://api.openaq.org/v3")
     TARGET_COUNTRY_ISO: str = os.getenv("TARGET_COUNTRY_ISO", "VN")
     DEFAULT_LIMIT: int = int(os.getenv("DEFAULT_LIMIT", "100"))
+    OPENAQ_ALLOW_MOCK: bool = os.getenv("OPENAQ_ALLOW_MOCK", "False").lower() in ("true", "1", "yes")
+    CITIES_CONFIG_PATH: Path = BASE_DIR / "config" / "cities.yaml"
 
     # S3 / MinIO
     S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
