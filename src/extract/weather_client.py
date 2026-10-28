@@ -10,7 +10,7 @@ logger = get_logger("WeatherClient")
 class WeatherClient:
     """
     Client tich hop Open-Meteo API de lay chi so khi tuong (Nhiet do C va Do am %)
-    theo toa do trạm (latitude, longitude) va thoi gian UTC.
+    theo toa do tram (latitude, longitude) va thoi gian UTC.
     Hoan toan mien phi, khong can API Key.
     """
 
@@ -18,7 +18,10 @@ class WeatherClient:
     FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
     def __init__(self):
-        self._cache: Dict[Tuple[float, float, str], Dict[str, float]] = {}
+        # Cache cac khoang ngay da goi: (lat, lon, start_date, end_date) -> True
+        self._fetched_ranges = set()
+        # Lookup nhanh O(1) theo tung gio: (lat, lon, "YYYY-MM-DDTHH:00") -> (temperature, humidity)
+        self._hourly_lookup: Dict[Tuple[float, float, str], Tuple[float, float]] = {}
 
     def get_hourly_weather(
         self,
@@ -29,19 +32,16 @@ class WeatherClient:
     ) -> Dict[str, Dict[str, float]]:
         """
         Lay du lieu nhiet do va do am theo gio cho 1 toa do trong khoang ngay [start_date, end_date].
-        Tra ve dict: {"YYYY-MM-DDTHH:00": {"temperature": float, "humidity": float}}
         """
-        # Lam tron toa do 2 chu so thap phan de cache hieu qua
         lat_rounded = round(latitude, 2)
         lon_rounded = round(longitude, 2)
+        range_key = (lat_rounded, lon_rounded, start_date, end_date)
 
-        cache_key = (lat_rounded, lon_rounded, f"{start_date}_{end_date}")
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        if range_key in self._fetched_ranges:
+            return {}
 
-        weather_map: Dict[str, Dict[str, float]] = {}
+        self._fetched_ranges.add(range_key)
 
-        # Thu endpoint archive truoc
         params = {
             "latitude": lat_rounded,
             "longitude": lon_rounded,
@@ -52,10 +52,9 @@ class WeatherClient:
         }
 
         try:
-            resp = requests.get(self.ARCHIVE_URL, params=params, timeout=20)
+            resp = requests.get(self.ARCHIVE_URL, params=params, timeout=25)
             if resp.status_code != 200:
-                # Neu archive khong tra ve (do la ngay hom nay hoac hom qua), dung endpoint forecast
-                resp = requests.get(self.FORECAST_URL, params=params, timeout=20)
+                resp = requests.get(self.FORECAST_URL, params=params, timeout=25)
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -65,20 +64,15 @@ class WeatherClient:
                 hums = hourly.get("relative_humidity_2m", [])
 
                 for t_str, temp, hum in zip(times, temps, hums):
-                    # Chuẩn hóa định dạng "2026-10-25T08:00" -> prefix "2026-10-25 08" hoặc so khớp
-                    weather_map[t_str] = {
-                        "temperature": float(temp) if temp is not None else 25.0,
-                        "humidity": float(hum) if hum is not None else 75.0,
-                    }
-                self._cache[cache_key] = weather_map
-                return weather_map
+                    t_val = float(temp) if temp is not None else 25.0
+                    h_val = float(hum) if hum is not None else 75.0
+                    self._hourly_lookup[(lat_rounded, lon_rounded, t_str)] = (t_val, h_val)
             else:
                 logger.warning(f"Open-Meteo HTTP {resp.status_code} cho toa do ({lat_rounded}, {lon_rounded})")
         except Exception as e:
             logger.warning(f"Loi goi Open-Meteo ({e}). Dung fallback mac dinh.")
 
-        # Fallback mac dinh neu khong the lay du lieu
-        return weather_map
+        return {}
 
     def get_weather_for_timestamp(
         self,
@@ -89,27 +83,22 @@ class WeatherClient:
         """
         Tra ve (temperature, humidity) cho 1 thoi diem datetime_utc cu the.
         dt_utc_str co the dang '2026-10-25T08:00:00Z' hoac '2026-10-25 08:00:00'
+        Tra ve O(1) tu bo nho lookup table.
         """
         try:
             date_part = dt_utc_str[:10]
-            # Key dang "YYYY-MM-DDTHH:00"
             hour_part = dt_utc_str[11:13]
             match_key = f"{date_part}T{hour_part}:00"
 
             lat_rounded = round(latitude, 2)
             lon_rounded = round(longitude, 2)
-            cache_key = (lat_rounded, lon_rounded, f"{date_part}_{date_part}")
+            lookup_key = (lat_rounded, lon_rounded, match_key)
 
-            if cache_key not in self._cache:
-                self.get_hourly_weather(latitude, longitude, date_part, date_part)
+            if lookup_key in self._hourly_lookup:
+                return self._hourly_lookup[lookup_key]
 
-            weather_data = self._cache.get(cache_key, {})
-            if match_key in weather_data:
-                return (
-                    weather_data[match_key]["temperature"],
-                    weather_data[match_key]["humidity"],
-                )
+            # Neu chua tung fetch ngay nay, goi 1 lan
+            self.get_hourly_weather(latitude, longitude, date_part, date_part)
+            return self._hourly_lookup.get(lookup_key, (25.0, 75.0))
         except Exception:
-            pass
-
-        return None, None
+            return None, None
