@@ -20,6 +20,10 @@ class AirQualityForecaster:
                 fm.location_key,
                 dl.location_name,
                 dl.city,
+                dl.country_code,
+                dl.region,
+                fm.temperature,
+                fm.humidity,
                 fm.value as target_value
             FROM fact_measurement fm
             JOIN dim_time dt ON dt.time_key = fm.time_key
@@ -59,6 +63,14 @@ class AirQualityForecaster:
             lambda values: values.rolling(window=24, min_periods=1).mean()
         )
 
+        # Dac trung thoi tiet lam giau neu co
+        has_weather = "temperature" in df.columns and "humidity" in df.columns
+        if has_weather:
+            df["temperature"] = df.groupby("location_key")["temperature"].ffill().bfill().fillna(25.0)
+            df["humidity"] = df.groupby("location_key")["humidity"].ffill().bfill().fillna(70.0)
+            df["temp_lag_1"] = df.groupby("location_key")["temperature"].shift(1)
+            df["hum_lag_1"] = df.groupby("location_key")["humidity"].shift(1)
+
         # Dac trung thoi gian
         df["is_weekend"] = df["day_of_week"].isin([6, 7]).astype(int)
 
@@ -79,11 +91,14 @@ class AirQualityForecaster:
         data = cls.create_features(raw_df)
         if len(data) < 2:
             return {"status": "insufficient_data", "samples": len(data)}
+
         feature_cols = [
             "hour", "day_of_week", "month", "is_weekend",
             "lag_1", "lag_2", "lag_24",
             "rolling_mean_6", "rolling_mean_24"
         ]
+        if "temperature" in data.columns and "humidity" in data.columns and "temp_lag_1" in data.columns:
+            feature_cols.extend(["temperature", "humidity", "temp_lag_1", "hum_lag_1"])
 
         # Chia tap train/test theo thoi gian, khong shuffle de tranh ro ri tuong lai.
         data = data.sort_values("datetime_utc").reset_index(drop=True)

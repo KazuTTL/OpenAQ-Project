@@ -38,18 +38,30 @@ def run_ml_analytics(
     station_features = StationClustering.extract_station_features(
         min_measurements=min_station_measurements
     )
+    max_k = min(8, len(station_features))
+    cluster_counts = range(2, max_k) if max_k > 2 else range(2, 3)
     cluster_evaluation = StationClustering.evaluate_kmeans(
         station_features,
-        cluster_counts=range(2, min(6, len(station_features))),
+        cluster_counts=cluster_counts,
     )
+    
+    # Lua chon so cum toi uu dua tren Silhouette score
+    chosen_k = n_clusters
+    if not cluster_evaluation.empty and "silhouette_score" in cluster_evaluation.columns:
+        valid_eval = cluster_evaluation.dropna(subset=["silhouette_score"])
+        if not valid_eval.empty and "n_clusters" in valid_eval.columns:
+            best_row = valid_eval.loc[valid_eval["silhouette_score"].idxmax()]
+            chosen_k = int(best_row["n_clusters"])
+            logger.info("Chon so cum toi uu K=%d dua tren Silhouette Score: %.4f", chosen_k, best_row["silhouette_score"])
+
     clusters = (
-        StationClustering.cluster_stations(station_features, n_clusters=n_clusters)
-        if len(station_features) >= n_clusters
+        StationClustering.cluster_stations(station_features, n_clusters=chosen_k)
+        if len(station_features) >= chosen_k
         else station_features
     )
     clusters_persisted = MlResultStore.persist_clusters(clusters)
 
-    # Cac ket qua pattern nay phuc vu phan tich ML, khong tao dashboard tai day.
+    # Cac ket qua pattern nay phuc vu phan tich ML
     hourly_patterns = PatternMiner.hourly_patterns(
         measurements,
         min_measurements=min_pattern_measurements,
@@ -81,6 +93,7 @@ def run_ml_analytics(
         "anomaly_candidates": len(anomalies),
         "anomalies_persisted": anomalies_persisted,
         "stations_clustered": len(clusters),
+        "chosen_k": chosen_k,
         "clusters_persisted": clusters_persisted,
         "cluster_evaluation_rows": len(cluster_evaluation),
         "best_silhouette_score": best_silhouette,

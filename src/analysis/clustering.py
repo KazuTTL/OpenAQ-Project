@@ -26,17 +26,21 @@ class StationClustering:
                 dl.source_location_id,
                 dl.location_name,
                 dl.city,
+                dl.country_code,
+                dl.region,
                 dl.latitude,
                 dl.longitude,
                 AVG(fm.aqi) as avg_aqi,
                 STDDEV(fm.aqi) as std_aqi,
                 MAX(fm.aqi) as max_aqi,
+                AVG(fm.temperature) as avg_temperature,
+                AVG(fm.humidity) as avg_humidity,
                 COUNT(CASE WHEN fm.aqi > 100 THEN 1 END) * 1.0 / NULLIF(COUNT(fm.measurement_key), 0) as unhealthy_rate,
                 COUNT(CASE WHEN fm.is_anomaly THEN 1 END) * 1.0 / NULLIF(COUNT(fm.measurement_key), 0) as anomaly_rate
             FROM fact_measurement fm
             JOIN dim_location dl ON dl.location_key = fm.location_key
             WHERE fm.aqi IS NOT NULL
-            GROUP BY dl.location_key, dl.source_location_id, dl.location_name, dl.city, dl.latitude, dl.longitude
+            GROUP BY dl.location_key, dl.source_location_id, dl.location_name, dl.city, dl.country_code, dl.region, dl.latitude, dl.longitude
             HAVING COUNT(fm.measurement_key) >= %(min_measurements)s;
         """
         conn = DBConnector.get_raw_connection()
@@ -55,6 +59,7 @@ class StationClustering:
         cls,
         df: pd.DataFrame,
         n_clusters: int = 3,
+        include_weather: bool = True,
     ) -> pd.DataFrame:
         missing_columns = set(cls.FEATURE_COLUMNS) - set(df.columns)
         if missing_columns:
@@ -63,8 +68,13 @@ class StationClustering:
             return df
 
         result = df.copy()
+        features_to_use = list(cls.FEATURE_COLUMNS)
+        if include_weather:
+            weather_cols = [c for c in ["avg_temperature", "avg_humidity"] if c in df.columns]
+            features_to_use.extend(weather_cols)
+
         # Chuan hoa cac dac trung de cac don vi do khac nhau khong lam lech K-Means.
-        features = result[cls.FEATURE_COLUMNS].fillna(0)
+        features = result[features_to_use].fillna(0)
 
         scaler = StandardScaler()
         scaled_features = scaler.fit_transform(features)
@@ -75,7 +85,17 @@ class StationClustering:
         # Dat nhan cum mang tinh truc quan dua tren muc avg_aqi
         cluster_centers = result.groupby("cluster")["avg_aqi"].mean().sort_values()
         label_mapping = {}
-        cluster_names = ["O nhiem thap / Trong lanh", "O nhiem trung binh", "O nhiem nghiem trong"]
+        if n_clusters == 2:
+            cluster_names = ["Trong lanh / Chat luong tot", "O nhiem cao"]
+        elif n_clusters == 3:
+            cluster_names = ["O nhiem thap / Trong lanh", "O nhiem trung binh", "O nhiem nghiem trong"]
+        elif n_clusters == 4:
+            cluster_names = ["Trong lanh (Tot)", "Trung binh", "Kem (O nhiem)", "Xau / Nguy hai"]
+        elif n_clusters == 5:
+            cluster_names = ["Rat tot", "Trung binh", "Kem", "Xau", "Nguy hai"]
+        else:
+            cluster_names = [f"Cum {i+1} (AQI TB: {round(val, 1)})" for i, val in enumerate(cluster_centers.values)]
+
         for rank, (cluster_id, _) in enumerate(cluster_centers.items()):
             label_mapping[cluster_id] = cluster_names[min(rank, len(cluster_names) - 1)]
 
@@ -109,6 +129,15 @@ class StationClustering:
                 "silhouette_score": float(silhouette_score(scaled_features, labels)),
             })
         return pd.DataFrame(evaluations)
+
+    @classmethod
+    def analyze_by_region(cls, clustered_df: pd.DataFrame) -> pd.DataFrame:
+        if "region" not in clustered_df.columns or "cluster_label" not in clustered_df.columns:
+            return pd.DataFrame()
+        return clustered_df.groupby(["country_code", "region", "cluster_label"]).agg(
+            station_count=("location_key", "count"),
+            avg_aqi=("avg_aqi", "mean"),
+        ).reset_index()
 
     @classmethod
     def run_kmeans(
