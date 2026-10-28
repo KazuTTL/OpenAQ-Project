@@ -2,14 +2,14 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-# Default arguments cho DAG
+# Default arguments cho DAG Airflow Micro-batching
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 2,
-    "retry_delay": timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=3),
 }
 
 
@@ -18,7 +18,6 @@ def run_extract_task(**kwargs):
     execution_date = kwargs.get("ds")  # YYYY-MM-DD
     pipeline = OpenAQPipeline()
     res = pipeline.run_extract(target_date=execution_date)
-    # Day ket qua vao XCom
     kwargs["ti"].xcom_push(key="extract_res", value=res)
 
 
@@ -43,24 +42,24 @@ def run_load_task(**kwargs):
     processed_key = ti.xcom_pull(key="processed_key", task_ids="transform_openaq_data")
     pipeline = OpenAQPipeline()
     load_res = pipeline.run_load(s3_processed_key=processed_key)
-    print("Ket qua Load:", load_res)
+    print("Ket qua Load Fact & Dimensions:", load_res)
 
 
 def run_ml_analytics_task(**kwargs):
     from src.analysis.analytics_runner import run_ml_analytics
 
     analytics_res = run_ml_analytics()
-    print("Ket qua ML Analytics:", analytics_res)
+    print("Ket qua ML Analytics (Clustering & Forecasting):", analytics_res)
 
 
 with DAG(
-    dag_id="openaq_etl_daily_pipeline",
+    dag_id="openaq_etl_hourly_pipeline",
     default_args=default_args,
-    description="Pipeline thu thap, xu ly va nap du lieu chat luong khong khi OpenAQ hang ngay vao DWH",
-    schedule_interval="0 2 * * *",  # 2:00 AM UTC hang ngay
+    description="Pipeline micro-batching thu thap, lam giau thoi tiet, xu ly va nap du lieu OpenAQ v3 theo gio",
+    schedule_interval="0 * * * *",  # Chay dinh ky moi gio vao phut 00
     start_date=datetime(2026, 1, 1),
     catchup=False,
-    tags=["openaq", "etl", "air_quality", "data_warehouse"],
+    tags=["openaq", "micro_batch", "hourly", "air_quality", "dwh", "ml"],
 ) as dag:
 
     extract_task = PythonOperator(
@@ -87,5 +86,5 @@ with DAG(
         provide_context=True,
     )
 
-    # Dependency flow: Extract -> Transform -> Load -> ML Analytics
+    # Thu tu thuc thi: Extract (OpenAQ + Open-Meteo) -> Transform (7 buoc) -> Load DWH -> ML Analytics
     extract_task >> transform_task >> load_task >> ml_analytics_task

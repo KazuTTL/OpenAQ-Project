@@ -171,6 +171,8 @@ SELECT
     dl.location_name,
     dl.city,
     dl.country,
+    dl.country_code,
+    dl.region,
     dl.latitude,
     dl.longitude,
     dp.parameter_name,
@@ -179,6 +181,8 @@ SELECT
     fm.value,
     fm.aqi,
     fm.pollution_category,
+    fm.temperature,
+    fm.humidity,
     fm.is_anomaly,
     fm.anomaly_score,
     fm.anomaly_method
@@ -242,16 +246,57 @@ SELECT
     dl.location_name,
     dl.city,
     dl.country,
+    dl.country_code,
+    dl.region,
     dl.latitude,
     dl.longitude,
     ROUND(AVG(fm.aqi)::numeric, 1)::float AS avg_aqi,
     ROUND(MAX(fm.aqi)::numeric, 1)::float AS max_aqi,
+    ROUND(AVG(fm.temperature)::numeric, 1)::float AS avg_temperature,
+    ROUND(AVG(fm.humidity)::numeric, 1)::float AS avg_humidity,
     COUNT(fm.measurement_key) AS recorded_data_points,
     COUNT(CASE WHEN fm.aqi > 100 THEN 1 END) AS unhealthy_hours
 FROM fact_measurement fm
 JOIN dim_location dl ON dl.location_key = fm.location_key
 WHERE dl.latitude IS NOT NULL AND dl.longitude IS NOT NULL
-GROUP BY dl.source_location_id, dl.location_name, dl.city, dl.country, dl.latitude, dl.longitude;
+GROUP BY dl.source_location_id, dl.location_name, dl.city, dl.country, dl.country_code, dl.region, dl.latitude, dl.longitude;
+
+CREATE OR REPLACE VIEW vw_country_comparison AS
+SELECT 
+    dl.country_code,
+    CASE 
+        WHEN dl.country_code = 'VN' THEN 'Việt Nam'
+        WHEN dl.country_code = 'TH' THEN 'Thái Lan'
+        ELSE dl.country_code
+    END AS country_name,
+    COUNT(DISTINCT dl.location_key) AS active_stations,
+    COUNT(DISTINCT dl.city) AS total_cities,
+    ROUND(AVG(fm.aqi)::numeric, 1)::float AS avg_aqi,
+    ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.value END)::numeric, 1)::float AS avg_pm25,
+    ROUND(AVG(fm.temperature)::numeric, 1)::float AS avg_temp,
+    ROUND(AVG(fm.humidity)::numeric, 1)::float AS avg_humidity,
+    ROUND(COUNT(CASE WHEN fm.aqi > 100 THEN 1 END) * 100.0 / NULLIF(COUNT(fm.measurement_key), 0), 2)::float AS unhealthy_hours_pct,
+    COUNT(fm.measurement_key) AS total_measurements
+FROM fact_measurement fm
+JOIN dim_location dl ON dl.location_key = fm.location_key
+JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+GROUP BY dl.country_code;
+
+CREATE OR REPLACE VIEW vw_region_comparison AS
+SELECT 
+    dl.country_code,
+    dl.region,
+    COUNT(DISTINCT dl.location_key) AS active_stations,
+    ROUND(AVG(fm.aqi)::numeric, 1)::float AS avg_aqi,
+    ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.value END)::numeric, 1)::float AS avg_pm25,
+    ROUND(AVG(fm.temperature)::numeric, 1)::float AS avg_temp,
+    ROUND(AVG(fm.humidity)::numeric, 1)::float AS avg_humidity
+FROM fact_measurement fm
+JOIN dim_location dl ON dl.location_key = fm.location_key
+JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+WHERE dl.region IS NOT NULL
+GROUP BY dl.country_code, dl.region
+ORDER BY avg_aqi DESC;
 
 CREATE OR REPLACE VIEW vw_station_ranking AS
 SELECT 
