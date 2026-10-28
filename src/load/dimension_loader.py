@@ -66,6 +66,9 @@ class DimensionLoader:
                 latitude,
                 longitude,
                 timezone,
+                country_code,
+                region,
+                data_source,
                 updated_at
             )
             SELECT DISTINCT ON (s.source_location_id)
@@ -76,6 +79,9 @@ class DimensionLoader:
                 s.latitude,
                 s.longitude,
                 COALESCE(s.timezone, 'Asia/Ho_Chi_Minh'),
+                COALESCE(s.country_code, 'VN'),
+                COALESCE(s.region, 'Unknown Region'),
+                COALESCE(s.data_source, 'openaq'),
                 CURRENT_TIMESTAMP
             FROM staging_measurement s
             WHERE s.source_location_id IS NOT NULL AND s.source_location_id > 0
@@ -87,6 +93,9 @@ class DimensionLoader:
                 latitude = COALESCE(EXCLUDED.latitude, dim_location.latitude),
                 longitude = COALESCE(EXCLUDED.longitude, dim_location.longitude),
                 timezone = EXCLUDED.timezone,
+                country_code = EXCLUDED.country_code,
+                region = EXCLUDED.region,
+                data_source = EXCLUDED.data_source,
                 updated_at = CURRENT_TIMESTAMP;
         """
         conn = DBConnector.get_raw_connection()

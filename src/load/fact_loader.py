@@ -17,6 +17,8 @@ class FactLoader:
                 value,
                 aqi,
                 pollution_category,
+                temperature,
+                humidity,
                 is_anomaly,
                 loaded_at
             )
@@ -27,6 +29,8 @@ class FactLoader:
                 s.measurement_value as value,
                 s.aqi,
                 s.pollution_category,
+                s.temperature,
+                s.humidity,
                 FALSE as is_anomaly,
                 CURRENT_TIMESTAMP as loaded_at
             FROM staging_measurement s
@@ -40,6 +44,8 @@ class FactLoader:
                 value = EXCLUDED.value,
                 aqi = EXCLUDED.aqi,
                 pollution_category = EXCLUDED.pollution_category,
+                temperature = COALESCE(EXCLUDED.temperature, fact_measurement.temperature),
+                humidity = COALESCE(EXCLUDED.humidity, fact_measurement.humidity),
                 loaded_at = CURRENT_TIMESTAMP;
         """
 

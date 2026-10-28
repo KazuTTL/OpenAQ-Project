@@ -35,7 +35,12 @@ class StagingLoader:
                         datetime_utc,
                         local_datetime,
                         aqi,
-                        pollution_category
+                        pollution_category,
+                        country_code,
+                        region,
+                        data_source,
+                        temperature,
+                        humidity
                     ) VALUES %s;
                 """
 
@@ -56,6 +61,11 @@ class StagingLoader:
                         row.get("local_datetime"),
                         float(row.get("aqi")) if pd.notnull(row.get("aqi")) else None,
                         str(row.get("pollution_category", "Unknown")),
+                        str(row.get("country_code", "VN")),
+                        str(row.get("region", "Unknown Region")),
+                        str(row.get("data_source", "openaq")),
+                        float(row.get("temperature")) if pd.notnull(row.get("temperature")) else None,
+                        float(row.get("humidity")) if pd.notnull(row.get("humidity")) else None,
                     ))
 
                 execute_values(cur, insert_sql, records, page_size=2000)

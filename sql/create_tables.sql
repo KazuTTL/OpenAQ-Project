@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS staging_measurement (
     local_datetime TIMESTAMP,
     aqi DOUBLE PRECISION,
     pollution_category VARCHAR(50),
+    country_code VARCHAR(10) DEFAULT 'VN',
+    region VARCHAR(50),
+    data_source VARCHAR(20) DEFAULT 'openaq',
+    temperature DOUBLE PRECISION,
+    humidity DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -56,6 +61,9 @@ CREATE TABLE IF NOT EXISTS dim_location (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     timezone VARCHAR(50) DEFAULT 'Asia/Ho_Chi_Minh',
+    country_code VARCHAR(10) DEFAULT 'VN',
+    region VARCHAR(50),
+    data_source VARCHAR(20) DEFAULT 'openaq',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -83,6 +91,8 @@ CREATE TABLE IF NOT EXISTS fact_measurement (
     value DOUBLE PRECISION NOT NULL,
     aqi DOUBLE PRECISION,
     pollution_category VARCHAR(50),
+    temperature DOUBLE PRECISION,
+    humidity DOUBLE PRECISION,
     is_anomaly BOOLEAN DEFAULT FALSE,
     anomaly_score DOUBLE PRECISION,
     anomaly_method VARCHAR(100),
