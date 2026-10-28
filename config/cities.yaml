@@ -1,0 +1,668 @@
+version: '2.0'
+description: Danh muc 20 thanh pho va cac tram quan trac thuc te OpenAQ (VN & TH)
+target_countries:
+- code: VN
+  name: Việt Nam
+  timezone: Asia/Ho_Chi_Minh
+- code: TH
+  name: Thái Lan
+  timezone: Asia/Bangkok
+total_cities: 20
+total_stations: 52
+cities:
+- city_id: hanoi
+  city_name: Hà Nội
+  country_code: VN
+  country_name: Việt Nam
+  region: Miền Bắc VN
+  latitude: 21.0285
+  longitude: 105.8542
+  stations:
+  - station_id: 4946812
+    station_name: Công viên Nhân Chính - Khuất Duy Tiến
+    latitude: 21.0031
+    longitude: 105.7947
+    last_active: '2026-10-28T03:50:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 4946813
+    station_name: 'Số 1 đường Giải Phóng - phường Bạch Mai - ĐHBK '
+    latitude: 21.0052
+    longitude: 105.8418
+    last_active: '2026-10-28T03:50:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 6123215
+    station_name: Dragon
+    latitude: 20.9933
+    longitude: 105.9441
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - pm1
+    - pm25
+    - relativehumidity
+    - temperature
+  - station_id: 2161292
+    station_name: Số 46, phố Lưu Quang Vũ
+    latitude: 21.0152
+    longitude: 105.7999
+    last_active: '2026-10-28T01:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+- city_id: ho_chi_minh
+  city_name: TP. Hồ Chí Minh
+  country_code: VN
+  country_name: Việt Nam
+  region: Miền Nam VN
+  latitude: 10.8231
+  longitude: 106.6297
+  stations:
+  - station_id: 3276359
+    station_name: CMT8
+    latitude: 10.78533
+    longitude: 106.67029
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - pm1
+    - pm10
+    - pm25
+    - relativehumidity
+  - station_id: 6531525
+    station_name: E5nn
+    latitude: 10.847
+    longitude: 106.79422
+    last_active: '2026-09-10T11:26:37Z'
+    sensors:
+    - pm25
+  - station_id: 6529522
+    station_name: 2E5 nn
+    latitude: 10.84702
+    longitude: 106.79431
+    last_active: '2026-09-08T12:55:35Z'
+    sensors:
+    - pm25
+  - station_id: 6529523
+    station_name: Phong nuoc nn
+    latitude: 10.84692
+    longitude: 106.79485
+    last_active: '2026-09-08T07:50:17Z'
+    sensors:
+    - pm25
+- city_id: bangkok
+  city_name: Bangkok
+  country_code: TH
+  country_name: Thái Lan
+  region: Trung Thái Lan
+  latitude: 13.7563
+  longitude: 100.5018
+  stations:
+  - station_id: 2352
+    station_name: Thonburi Power Sub-Station
+    latitude: 13.72762
+    longitude: 100.48657
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 2375
+    station_name: Bodindecha Sing Singhaseni School
+    latitude: 13.76963
+    longitude: 100.61457
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 5545
+    station_name: Chulalongkorn Hospital
+    latitude: 13.72985
+    longitude: 100.5365
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+- city_id: rayong
+  city_name: Rayong
+  country_code: TH
+  country_name: Thái Lan
+  region: Đông Thái Lan
+  latitude: 12.6814
+  longitude: 101.2816
+  stations:
+  - station_id: 717
+    station_name: Pluakdaeng District Health Office
+    latitude: 12.97378
+    longitude: 101.21285
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 225576
+    station_name: Khai Surasinghanat
+    latitude: 12.64858
+    longitude: 101.32245
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 225603
+    station_name: Field Crop Research Center, Rayong
+    latitude: 12.73518
+    longitude: 101.13565
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+- city_id: chiang_mai
+  city_name: Chiang Mai
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 18.7883
+  longitude: 98.9853
+  stations:
+  - station_id: 225579
+    station_name: Yupparaj Wittayalai School
+    latitude: 18.79093
+    longitude: 98.99
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - pm10
+    - pm25
+  - station_id: 225669
+    station_name: City Hall, Chiangmai
+    latitude: 18.84073
+    longitude: 98.96978
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 225693
+    station_name: Debaratana Vejjanukul Hospital, Mae Chaem
+    latitude: 18.49833
+    longitude: 98.37944
+    last_active: '2026-06-02T06:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+    - pm25
+- city_id: mae_hong_son
+  city_name: Mae Hong Son
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 19.3021
+  longitude: 97.9654
+  stations:
+  - station_id: 225648
+    station_name: Natural Resources and Environment Office, Mae Hongson
+    latitude: 19.30455
+    longitude: 97.97165
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 1896763
+    station_name: Pai Airport
+    latitude: 19.36964
+    longitude: 98.43596
+    last_active: '2026-06-02T06:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+  - station_id: 500068
+    station_name: Pai Municipality
+    latitude: 19.35915
+    longitude: 98.43648
+    last_active: '2026-02-09T12:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+- city_id: samut_prakan
+  city_name: Samut Prakan
+  country_code: TH
+  country_name: Thái Lan
+  region: Trung Thái Lan
+  latitude: 13.5991
+  longitude: 100.5998
+  stations:
+  - station_id: 135
+    station_name: Prabadang Rehabiltation Center
+    latitude: 13.66409
+    longitude: 100.54344
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 906
+    station_name: Residence for Dept. of Mineral Resources
+    latitude: 13.65214
+    longitude: 100.53181
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 225637
+    station_name: South Bangkok Power Plant
+    latitude: 13.618
+    longitude: 100.5562
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+- city_id: lampang
+  city_name: Lampang
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 18.2888
+  longitude: 99.4928
+  stations:
+  - station_id: 2411
+    station_name: Health Promotion Hospital Banthasri
+    latitude: 18.42678
+    longitude: 99.75763
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 225570
+    station_name: Meteorological stations, Lampang
+    latitude: 18.27833
+    longitude: 99.50647
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - o3
+    - pm10
+    - pm25
+    - pm25
+  - station_id: 225646
+    station_name: Provincial Waterworks Authority Mae Moh
+    latitude: 18.28263
+    longitude: 99.65982
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - o3
+    - pm10
+    - pm25
+    - pm25
+- city_id: chiang_rai
+  city_name: Chiang Rai
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 19.9072
+  longitude: 99.8325
+  stations:
+  - station_id: 2328
+    station_name: Natural Resources and Environment Office, Chiangrai
+    latitude: 19.90922
+    longitude: 99.82347
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 225567
+    station_name: Maesai Health Office
+    latitude: 20.42732
+    longitude: 99.88384
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 387511
+    station_name: Wiang Subdistrict Disaster Prevention and Mitigation Center
+    latitude: 20.2575
+    longitude: 100.4025
+    last_active: '2026-06-01T04:00:00Z'
+    sensors:
+    - pm10
+    - pm10
+    - pm25
+    - pm25
+- city_id: sisaket
+  city_name: Sisaket
+  country_code: TH
+  country_name: Thái Lan
+  region: Đông Bắc Thái Lan
+  latitude: 15.1186
+  longitude: 104.322
+  stations:
+  - station_id: 1873401
+    station_name: Sisaket Meteorological Center
+    latitude: 15.08709
+    longitude: 104.32679
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm25
+  - station_id: 1785693
+    station_name: Sisaket Meteorological Center
+    latitude: 15.08684
+    longitude: 104.32647
+    last_active: '2023-11-23T06:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm25
+  - station_id: 289762
+    station_name: Sisaket City Hall
+    latitude: 15.11879
+    longitude: 104.32261
+    last_active: '2023-11-02T18:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+- city_id: nonthaburi
+  city_name: Nonthaburi
+  country_code: TH
+  country_name: Thái Lan
+  region: Trung Thái Lan
+  latitude: 13.8621
+  longitude: 100.5144
+  stations:
+  - station_id: 225629
+    station_name: Department of Disease Control
+    latitude: 13.85278
+    longitude: 100.52944
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 701
+    station_name: Sukhothai Thammathirat Open University
+    latitude: 13.90786
+    longitude: 100.53564
+    last_active: '2026-10-27T05:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+- city_id: samut_sakhon
+  city_name: Samut Sakhon
+  country_code: TH
+  country_name: Thái Lan
+  region: Trung Thái Lan
+  latitude: 13.5475
+  longitude: 100.2744
+  stations:
+  - station_id: 2167
+    station_name: Highway District
+    latitude: 13.70549
+    longitude: 100.31562
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 2376
+    station_name: Samut Sakhon Wittayalai School
+    latitude: 13.55026
+    longitude: 100.26477
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+- city_id: chon_buri
+  city_name: Chonburi
+  country_code: TH
+  country_name: Thái Lan
+  region: Đông Thái Lan
+  latitude: 13.3611
+  longitude: 100.9847
+  stations:
+  - station_id: 7840
+    station_name: Laem Chabang Municipal Stadium
+    latitude: 13.11923
+    longitude: 100.91855
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 225569
+    station_name: Health Promotion Hospital Bankhaohin
+    latitude: 13.05455
+    longitude: 101.09813
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+- city_id: songkhla
+  city_name: Songkhla
+  country_code: TH
+  country_name: Thái Lan
+  region: Nam Thái Lan
+  latitude: 7.1988
+  longitude: 100.5951
+  stations:
+  - station_id: 225573
+    station_name: Hat Yai Municipality
+    latitude: 7.02043
+    longitude: 100.48409
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 1180402
+    station_name: Ban Padang Community School
+    latitude: 6.66614
+    longitude: 100.32735
+    last_active: '2024-02-15T09:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+- city_id: yala
+  city_name: Yala
+  country_code: TH
+  country_name: Thái Lan
+  region: Nam Thái Lan
+  latitude: 6.5411
+  longitude: 101.2813
+  stations:
+  - station_id: 225578
+    station_name: White Elephant Park
+    latitude: 6.5462
+    longitude: 101.28314
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm25
+  - station_id: 225657
+    station_name: child development centers, Betong
+    latitude: 5.76387
+    longitude: 101.0679
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+    - pm25
+- city_id: saraburi
+  city_name: Saraburi
+  country_code: TH
+  country_name: Thái Lan
+  region: Trung Thái Lan
+  latitude: 14.5289
+  longitude: 100.9101
+  stations:
+  - station_id: 225620
+    station_name: Na Phralan Police Station
+    latitude: 14.68583
+    longitude: 100.872
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 225636
+    station_name: Khao Noi Fire Station
+    latitude: 14.52634
+    longitude: 100.92605
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - no2
+    - o3
+    - pm10
+    - pm10
+- city_id: tak
+  city_name: Tak
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 16.8839
+  longitude: 99.1258
+  stations:
+  - station_id: 225626
+    station_name: Non-Formal Education Centre, Mea Sot
+    latitude: 16.73441
+    longitude: 98.56696
+    last_active: '2026-10-06T06:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 429261
+    station_name: Tak Provincial Administrative Organization
+    latitude: 16.87778
+    longitude: 99.13972
+    last_active: '2023-06-02T06:00:00Z'
+    sensors:
+    - pm25
+- city_id: lamphun
+  city_name: Lamphun
+  country_code: TH
+  country_name: Thái Lan
+  region: Bắc Thái Lan
+  latitude: 18.5744
+  longitude: 99.0087
+  stations:
+  - station_id: 225655
+    station_name: Meteorological Staions, Lamphun
+    latitude: 18.56719
+    longitude: 99.03864
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 388962
+    station_name: Li District Office
+    latitude: 17.80222
+    longitude: 98.94972
+    last_active: '2026-05-23T10:00:00Z'
+    sensors:
+    - pm10
+    - pm25
+    - pm25
+- city_id: bueng_kan
+  city_name: Bueng Kan
+  country_code: TH
+  country_name: Thái Lan
+  region: Đông Bắc Thái Lan
+  latitude: 18.3633
+  longitude: 103.6528
+  stations:
+  - station_id: 1785692
+    station_name: Nong Bueng Kan Park
+    latitude: 18.36201
+    longitude: 103.65977
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm25
+  - station_id: 225658
+    station_name: Bueng Kan District Office
+    latitude: 18.35825
+    longitude: 103.65206
+    last_active: '2023-06-13T00:00:00Z'
+    sensors:
+    - co
+    - o3
+    - pm10
+    - pm25
+- city_id: kalasin
+  city_name: Kalasin
+  country_code: TH
+  country_name: Thái Lan
+  region: Đông Bắc Thái Lan
+  latitude: 16.4322
+  longitude: 103.5061
+  stations:
+  - station_id: 1785690
+    station_name: KAENG DON KLANG PARK
+    latitude: 16.4436
+    longitude: 103.513
+    last_active: '2026-10-28T03:00:00Z'
+    sensors:
+    - co
+    - no2
+    - o3
+    - pm10
+  - station_id: 225659
+    station_name: Kalasin Provincial Natural Resources and Environment Office
+    latitude: 16.4429
+    longitude: 103.53522
+    last_active: '2023-06-13T00:00:00Z'
+    sensors:
+    - pm25
