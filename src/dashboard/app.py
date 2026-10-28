@@ -403,7 +403,14 @@ class DashboardDataService:
                 heatmap_matrix.append([h, y_idx, val])
 
         # 7. Du bao ngan han (PM2.5) cho thanh pho duoc chon
-        fc_city = forecast_city if forecast_city in active_cities else (active_cities[0] if active_cities else "Hà Nội")
+        valid_cities = active_cities if active_cities else sorted(list({r["city"] for r in locations if r.get("city")}))
+        if forecast_city and forecast_city in valid_cities:
+            fc_city = forecast_city
+        elif city_filter and city_filter != "all" and city_filter in valid_cities:
+            fc_city = city_filter
+        else:
+            fc_city = valid_cities[0] if valid_cities else "Hà Nội"
+
         hist_rows = self._query(
             """
             SELECT
@@ -446,22 +453,51 @@ class DashboardDataService:
                 lower_band.append(round(max(5.0, pred - band), 1))
                 upper_band.append(round(pred + band, 1))
 
-        # 8. Cac diem bat thuong (Anomalies)
-        anomaly_rows = self._query(
-            """
+        # 8. Cac diem bat thuong (Anomalies) - ho tro loc theo quoc gia, thanh pho, tram
+        anom_where = ["(fm.is_anomaly = TRUE OR fm.aqi > 150)"]
+        anom_params: List[Any] = []
+        if country_filter and country_filter != "all":
+            anom_where.append("dl.country_code = %s")
+            anom_params.append(country_filter)
+        if city_filter and city_filter != "all":
+            anom_where.append("dl.city = %s")
+            anom_params.append(city_filter)
+        if station_filter and station_filter != "all":
+            anom_where.append("dl.location_name = %s")
+            anom_params.append(station_filter)
+        if param_filter and param_filter != "all":
+            anom_where.append("dp.parameter_name = %s")
+            anom_params.append(param_filter.lower().replace(".", ""))
+
+        anom_sql = f"""
             SELECT
-                thoi_gian,
-                tram,
-                thong_so,
-                gia_tri_do_duoc,
-                nguong,
-                muc_do,
-                trang_thai,
-                aqi
-            FROM vw_anomaly_formatted
-            LIMIT 12
-            """
-        )
+                TO_CHAR(dt.datetime_utc + INTERVAL '7 hours', 'DD/MM HH24:MI') AS thoi_gian,
+                dt.datetime_utc,
+                dl.location_name AS tram,
+                dl.city AS thanh_pho,
+                dl.country_code,
+                UPPER(dp.parameter_name) AS thong_so,
+                ROUND(fm.value::numeric, 1) || ' ' || dp.unit AS gia_tri_do_duoc,
+                CASE
+                    WHEN dp.parameter_name = 'pm25' THEN '75 ug/m3'
+                    WHEN dp.parameter_name = 'pm10' THEN '100 ug/m3'
+                    WHEN dp.parameter_name = 'no2' THEN '0.053 ppm'
+                    WHEN dp.parameter_name = 'so2' THEN '0.035 ppm'
+                    ELSE '50 ' || dp.unit
+                END AS nguong,
+                CASE WHEN fm.aqi >= 150 THEN 'Cao' ELSE 'Trung bình' END AS muc_do,
+                CASE WHEN fm.aqi >= 150 THEN 'Cảnh báo' ELSE 'Theo dõi' END AS trang_thai,
+                ROUND(fm.aqi::numeric, 1)::float AS aqi,
+                ROUND(fm.value::numeric, 3)::float AS raw_value
+            FROM fact_measurement fm
+            JOIN dim_time dt ON dt.time_key = fm.time_key
+            JOIN dim_location dl ON dl.location_key = fm.location_key
+            JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+            WHERE {' AND '.join(anom_where)}
+            ORDER BY dt.datetime_utc DESC
+            LIMIT 15
+        """
+        anomaly_rows = self._query(anom_sql, tuple(anom_params))
         anomalies = []
         for r in anomaly_rows:
             raw_param = str(r.get("thong_so", "")).upper()
@@ -501,22 +537,70 @@ class DashboardDataService:
                 "status": clean_status,
             })
 
-        # 9. Phan cum K-Means tram quan trac
-        cluster_rows = self._query(
-            """
+        # 9. Phan cum K-Means tram quan trac - ho tro loc theo quoc gia va thanh pho
+        cluster_where = ["c.run_timestamp = (SELECT MAX(run_timestamp) FROM ml_station_cluster_result)"]
+        cluster_params: List[Any] = []
+        if country_filter and country_filter != "all":
+            cluster_where.append("dl.country_code = %s")
+            cluster_params.append(country_filter)
+        if city_filter and city_filter != "all":
+            cluster_where.append("dl.city = %s")
+            cluster_params.append(city_filter)
+
+        cluster_sql = f"""
             SELECT
-                location_name,
-                city,
-                cluster,
-                cluster_label,
-                avg_aqi,
-                max_aqi,
-                unhealthy_pct,
-                anomaly_pct
-            FROM vw_ml_station_clusters
-            ORDER BY avg_aqi DESC
-            """
-        )
+                dl.location_name,
+                dl.city,
+                dl.country_code,
+                c.cluster,
+                c.cluster_label,
+                ROUND(c.avg_aqi::numeric, 1)::float AS avg_aqi,
+                ROUND(c.max_aqi::numeric, 1)::float AS max_aqi,
+                ROUND((c.unhealthy_rate * 100)::numeric, 1)::float AS unhealthy_pct,
+                ROUND((c.anomaly_rate * 100)::numeric, 1)::float AS anomaly_pct
+            FROM ml_station_cluster_result c
+            JOIN dim_location dl ON dl.location_key = c.location_key
+            WHERE {' AND '.join(cluster_where)}
+            ORDER BY c.avg_aqi DESC
+            LIMIT 10
+        """
+        cluster_rows = self._query(cluster_sql, tuple(cluster_params))
+
+        # Chuan hoa nhan cum K-Means sang tieng Viet co dau dong bo giao dien
+        cluster_label_map = {
+            "Trong lanh / Chat luong tot": "Trong lành / Chất lượng tốt",
+            "Trong lanh (Tot)": "Trong lành (Tốt)",
+            "O nhiem thap / Trong lanh": "Ô nhiễm thấp / Trong lành",
+            "O nhiem trung binh": "Ô nhiễm trung bình",
+            "Trung binh": "Trung bình",
+            "Kem (O nhiem)": "Kém (Ô nhiễm)",
+            "Kem": "Kém",
+            "O nhiem cao": "Ô nhiễm cao",
+            "O nhiem rat cao": "Ô nhiễm rất cao",
+            "O nhiem nghiem trong": "Ô nhiễm nghiêm trọng",
+            "Xau / Nguy hai": "Xấu / Nguy hại",
+            "Xau": "Xấu",
+            "Nguy hai": "Nguy hại",
+            "Rat tot": "Rất tốt",
+        }
+        for r in cluster_rows:
+            raw_lbl = str(r.get("cluster_label") or "").strip()
+            if raw_lbl in cluster_label_map:
+                r["cluster_label"] = cluster_label_map[raw_lbl]
+            elif raw_lbl.startswith("Cum "):
+                r["cluster_label"] = "Cụm " + raw_lbl[4:]
+            elif raw_lbl:
+                r["cluster_label"] = (
+                    raw_lbl.replace("O nhiem", "Ô nhiễm")
+                    .replace("o nhiem", "ô nhiễm")
+                    .replace("Trong lanh", "Trong lành")
+                    .replace("trong lanh", "trong lành")
+                    .replace("Chat luong tot", "Chất lượng tốt")
+                    .replace("chat luong tot", "chất lượng tốt")
+                    .replace("trung binh", "trung bình")
+                    .replace("nghiem trong", "nghiêm trọng")
+                    .replace("Nguy hai", "Nguy hại")
+                )
 
         # 10. Toa do va trang thai tram phuc vu Ban do Geospatial Leaflet Map
         station_marker_rows = self._query(
@@ -631,6 +715,7 @@ class DashboardDataService:
             },
             "forecast_alerts": {
                 "city": fc_city,
+                "available_cities": valid_cities,
                 "dates": fc_dates,
                 "actual": actual_vals,
                 "forecast": forecast_vals,

@@ -86,15 +86,15 @@ class StationClustering:
         cluster_centers = result.groupby("cluster")["avg_aqi"].mean().sort_values()
         label_mapping = {}
         if n_clusters == 2:
-            cluster_names = ["Trong lanh / Chat luong tot", "O nhiem cao"]
+            cluster_names = ["Trong lành / Chất lượng tốt", "Ô nhiễm cao"]
         elif n_clusters == 3:
-            cluster_names = ["O nhiem thap / Trong lanh", "O nhiem trung binh", "O nhiem nghiem trong"]
+            cluster_names = ["Ô nhiễm thấp / Trong lành", "Ô nhiễm trung bình", "Ô nhiễm nghiêm trọng"]
         elif n_clusters == 4:
-            cluster_names = ["Trong lanh (Tot)", "Trung binh", "Kem (O nhiem)", "Xau / Nguy hai"]
+            cluster_names = ["Trong lành (Tốt)", "Trung bình", "Kém (Ô nhiễm)", "Xấu / Nguy hại"]
         elif n_clusters == 5:
-            cluster_names = ["Rat tot", "Trung binh", "Kem", "Xau", "Nguy hai"]
+            cluster_names = ["Rất tốt", "Trung bình", "Kém", "Xấu", "Nguy hại"]
         else:
-            cluster_names = [f"Cum {i+1} (AQI TB: {round(val, 1)})" for i, val in enumerate(cluster_centers.values)]
+            cluster_names = [f"Cụm {i+1} (AQI TB: {round(val, 1)})" for i, val in enumerate(cluster_centers.values)]
 
         for rank, (cluster_id, _) in enumerate(cluster_centers.items()):
             label_mapping[cluster_id] = cluster_names[min(rank, len(cluster_names) - 1)]
