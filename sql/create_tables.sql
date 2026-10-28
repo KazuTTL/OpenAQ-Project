@@ -308,7 +308,7 @@ GROUP BY dp.parameter_name, dp.display_name, dp.unit;
 
 CREATE OR REPLACE VIEW vw_city_top10_aqi AS
 SELECT
-    ROW_NUMBER() OVER (ORDER BY AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.aqi ELSE fm.aqi END) DESC)::int AS rank_no,
+    ROW_NUMBER() OVER (ORDER BY AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.aqi ELSE NULL END) DESC)::int AS rank_no,
     dl.city AS thanh_pho,
     ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.aqi ELSE NULL END)::numeric, 0)::int AS aqi,
     CASE

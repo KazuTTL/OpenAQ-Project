@@ -9,73 +9,200 @@ ADMIN_PASS = "admin"
 DB_NAME = "PostgreSQL"
 
 DARK_MODE_CSS = """
-/* OpenAQ Vietnam Dark Mode Theme for Apache Superset */
+/* OpenAQ Vietnam Bright Dark Mode Theme for Apache Superset */
+/* 1. Global Page Background and Base Text */
 .dashboard,
 .dashboard-content,
 .grid-container,
+.dashboard-component,
+.dragdroppable,
 body {
-  background-color: #070d19 !important;
-  color: #f1f5f9 !important;
-}
-
-.header-with-actions,
-.dashboard-header {
-  background-color: #0b1324 !important;
-  border-bottom: 1px solid #1e3158 !important;
+  background-color: #080f1d !important;
   color: #ffffff !important;
 }
 
-.ant-tabs-nav {
-  background-color: #0b1324 !important;
-  border-bottom: 1px solid #1e3158 !important;
-  padding: 0 16px !important;
+/* 2. Eliminate all black/dark text across headers, labels, and links */
+.header-with-actions,
+.dashboard-header,
+.header-title,
+.editable-title a,
+.editable-title span,
+.editable-title input,
+.chart-header,
+.slice_container,
+.dashboard-component-chart-holder .header-title,
+h1, h2, h3, h4, h5, h6,
+p, span, div, a {
+  color: #ffffff !important;
+}
+
+/* 3. Dashboard Top Navigation Tabs */
+.ant-tabs-nav,
+.ant-tabs-nav-wrap,
+.ant-tabs-nav-list {
+  background-color: #0f1a30 !important;
+  border-bottom: 2px solid #24385e !important;
 }
 
 .ant-tabs-tab {
-  color: #94a3b8 !important;
+  color: #cbd5e1 !important;
+  font-size: 14px !important;
   font-weight: 600 !important;
+}
+
+.ant-tabs-tab:hover {
+  color: #38bdf8 !important;
 }
 
 .ant-tabs-tab-active .ant-tabs-tab-btn {
   color: #38bdf8 !important;
-}
-
-.dashboard-component-chart-holder,
-.chart-slice,
-.slice_container {
-  background: linear-gradient(180deg, #101b33 0%, #0d172c 100%) !important;
-  border: 1px solid #1e3158 !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
-  color: #f1f5f9 !important;
-}
-
-.chart-header,
-.header-title,
-.editable-title a,
-.editable-title input {
-  color: #f8fafc !important;
   font-weight: 700 !important;
 }
 
-.superset-chart-table table,
+.ant-tabs-ink-bar {
+  background: #38bdf8 !important;
+  height: 3px !important;
+}
+
+/* 4. Chart Container Cards (Brighter Slate-Navy gradient with crisp borders) */
+.dashboard-component-chart-holder,
+.chart-slice,
+.slice_container {
+  background: linear-gradient(180deg, #182744 0%, #101c33 100%) !important;
+  border: 1px solid #2e4774 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.chart-header {
+  border-bottom: 1px solid #24385e !important;
+  padding-bottom: 8px !important;
+}
+
+.chart-header .header-title {
+  color: #38bdf8 !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+.header-controls span,
+.header-controls button,
+.header-controls a {
+  color: #cbd5e1 !important;
+}
+
+/* 5. SVG Text Overrides (NVD3 Bar, ECharts Axes, Tick marks, Legends) */
+svg text,
+svg text tspan,
+.nvd3 text,
+.nv-axis text,
+.nv-axislabel,
+.nvd3 .nv-legend text,
+.nv-bar-value,
+.tick text {
+  fill: #f8fafc !important;
+  stroke: none !important;
+  color: #f8fafc !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.nv-axis path.domain,
+.nv-axis line {
+  stroke: #475569 !important;
+}
+
+/* 6. High Contrast Table Charts (Top 10 Cities, KPI, Anomalies, Clusters) */
+.superset-chart-table,
+.table-condensed,
 table.table {
-  background-color: #101b33 !important;
-  color: #e2e8f0 !important;
+  background-color: #14223b !important;
+  color: #ffffff !important;
 }
 
 .superset-chart-table th,
 table.table th {
-  background-color: #15223f !important;
+  background: linear-gradient(180deg, #243d6b 0%, #1c3157 100%) !important;
   color: #38bdf8 !important;
-  border-bottom: 1px solid #1e3158 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #38bdf8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
 }
 
 .superset-chart-table td,
-table.table td {
-  background-color: #101b33 !important;
-  color: #e2e8f0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+table.table td,
+.superset-chart-table div.cell,
+.superset-chart-table span {
+  background-color: #121e35 !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-bottom: 1px solid #24385e !important;
+}
+
+table.table tbody tr:nth-of-type(odd) td,
+table.table tbody tr:nth-of-type(odd) div.cell {
+  background-color: #182846 !important;
+}
+
+table.table tbody tr:hover td,
+table.table tbody tr:hover div.cell {
+  background-color: #2563eb44 !important;
+  color: #38bdf8 !important;
+}
+
+/* 7. Inputs, Search Box & Pagination */
+.form-control,
+input[type="text"],
+.ant-input {
+  background-color: #1e3158 !important;
+  color: #ffffff !important;
+  border: 1px solid #38bdf8 !important;
+  border-radius: 6px !important;
+}
+
+.pagination > li > a,
+.pagination > li > span,
+.ant-pagination-item a,
+.ant-pagination-item-link {
+  background-color: #1c2e52 !important;
+  color: #f8fafc !important;
+  border: 1px solid #2e4774 !important;
+}
+
+.pagination > .active > a,
+.ant-pagination-item-active a {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #38bdf8 !important;
+  font-weight: 700 !important;
+}
+
+/* 8. Native Filters Panel */
+.filter-bar,
+.native-filters-filter-bar {
+  background-color: #0a1324 !important;
+  border-right: 1px solid #24385e !important;
+}
+
+.filter-bar *,
+.filter-title,
+.filter-control-label {
+  color: #38bdf8 !important;
+  font-weight: 600 !important;
+}
+
+.ant-select-selector {
+  background-color: #1c2e52 !important;
+  color: #ffffff !important;
+  border: 1px solid #334155 !important;
+}
+
+.ant-select-selection-item {
+  color: #ffffff !important;
 }
 """
 
@@ -404,8 +531,24 @@ def main():
             "adhoc_filters": [],
             "row_limit": 10,
             "show_legend": False,
+            "show_bar_value": True,
+            "bar_values_margin": 10,
             "y_axis_format": ",d",
-            "color_scheme": "supersetColors",
+            "color_scheme": "d3Category20",
+            "label_colors": {
+                "PM2.5": "#38bdf8",                  # Bright Sky Cyan
+                "PM10": "#34d399",                   # Bright Emerald Green
+                "Nitrogen Dioxide (NO2)": "#facc15", # Bright Sunlight Yellow
+                "Sulfur Dioxide (SO2)": "#fb923c",   # Bright Orange
+                "Carbon Monoxide (CO)": "#c084fc",   # Bright Violet
+                "Ozone (O3)": "#f472b6",             # Bright Pink
+                "pm25": "#38bdf8",
+                "pm10": "#34d399",
+                "no2": "#facc15",
+                "so2": "#fb923c",
+                "co": "#c084fc",
+                "o3": "#f472b6",
+            },
         },
         description="So sanh chi so AQI trung binh toan quoc giua PM2.5, PM10, NO2, SO2, CO, O3",
     )
@@ -427,8 +570,23 @@ def main():
             "donut": True,
             "show_labels": True,
             "show_legend": True,
+            "legendOrientation": "top",
+            "legendType": "scroll",
             "label_type": "key_percent",
-            "color_scheme": "supersetColors",
+            "color_scheme": "d3Category20",
+            "label_colors": {
+                "Good": "#10b981",                          # Bright Emerald Green
+                "Moderate": "#f59e0b",                      # Bright Amber Gold
+                "Unhealthy for Sensitive Groups": "#f97316",# Bright Orange
+                "Unhealthy": "#ef4444",                     # Bright Coral Red
+                "Very Unhealthy": "#a855f7",                # Bright Violet Purple
+                "Unknown": "#94a3b8",                       # Slate
+                "Tốt": "#10b981",
+                "Trung bình": "#f59e0b",
+                "Kém": "#f97316",
+                "Xấu": "#ef4444",
+                "Rất xấu": "#a855f7",
+            },
         },
         description="Phan bo cac nhom muc o nhiem: Tot, Trung binh, Kem, Xau, Rat xau",
     )
@@ -455,8 +613,24 @@ def main():
             "row_limit": 2000,
             "show_legend": True,
             "rich_tooltip": True,
-            "markerEnabled": False,
+            "markerEnabled": True,
+            "markerSize": 5,
+            "line_width": 3,
             "y_axis_format": ",.1f",
+            "color_scheme": "d3Category20",
+            "label_colors": {
+                "Hà Nội": "#fb923c",      # Bright Neon Orange
+                "TP. HCM": "#38bdf8",     # Bright Neon Sky Blue
+                "Đà Nẵng": "#34d399",     # Bright Neon Emerald
+                "Hải Phòng": "#c084fc",   # Bright Neon Purple
+                "Biên Hòa": "#f43f5e",    # Bright Rose
+                "Bắc Ninh": "#facc15",    # Bright Yellow
+                "Vinh": "#4ade80",        # Bright Light Green
+                "Thái Nguyên": "#2dd4bf", # Bright Teal
+                "Cần Thơ": "#a3e635",     # Bright Lime
+                "Nha Trang": "#60a5fa",   # Bright Royal Blue
+                "Đà Lạt": "#e879f9",      # Bright Fuchsia
+            },
         },
         description="Xu huong nong do PM2.5 theo gio giua Ha Noi, TP. HCM, Da Nang, Hai Phong va cac tinh thanh",
     )
@@ -497,7 +671,9 @@ def main():
                 "muc_do",
             ],
             "row_limit": 10,
+            "page_length": 10,
             "include_search": False,
+            "table_timestamp_format": "smart_date",
         },
         description="Bang xep hang Top 10 thanh pho co chi so AQI cao nhat Viet Nam",
     )
