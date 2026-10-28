@@ -271,23 +271,55 @@ class DashboardDataService:
         target_param = (trend_param or "pm25").lower().replace(".", "")
         if granularity == "day":
             time_expr = "TO_CHAR(dt.local_date, 'DD/MM')"
+            group_expr = "dt.local_date"
             order_expr = "dt.local_date"
         else:
             time_expr = "TO_CHAR(dt.datetime_utc + INTERVAL '7 hours', 'DD/MM HH24:00')"
-            order_expr = "MIN(dt.datetime_utc)"
+            group_expr = "dt.datetime_utc"
+            order_expr = "dt.datetime_utc"
 
-        # Chon danh sach thanh pho tieu bieu tuy theo quoc gia
-        if country_filter == "VN":
-            default_focus = ["Hà Nội", "Tp. Hồ Chí Minh"]
-        elif country_filter == "TH":
-            default_focus = ["Bangkok", "Chiang Mai", "Rayong", "Samut Prakan"]
-        else:
-            default_focus = ["Hà Nội", "Tp. Hồ Chí Minh", "Bangkok", "Chiang Mai"]
+        # Tim cac do thi co du lieu thuc te cho chat dang chon
+        city_count_sql = """
+            SELECT dl.city, COUNT(*) as cnt
+            FROM fact_measurement fm
+            JOIN dim_location dl ON dl.location_key = fm.location_key
+            JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+            WHERE LOWER(dp.parameter_name) = %s
+        """
+        city_params: List[Any] = [target_param]
+        if country_filter and country_filter != "all":
+            city_count_sql += " AND dl.country_code = %s"
+            city_params.append(country_filter)
+        city_count_sql += " GROUP BY dl.city ORDER BY cnt DESC LIMIT 4"
 
-        if city_filter and city_filter != "all" and city_filter not in default_focus:
-            focus_cities = [city_filter] + default_focus[:3]
+        city_candidates = [r["city"] for r in self._query(city_count_sql, tuple(city_params))]
+
+        # Neu quoc gia dang loc co it hon 2 thanh pho do chat nay (vi du: VN khong co tram do CO, hoac chi Ha Noi do NO2/SO2)
+        # Thi bo sung them cac do thi hang dau khu vuc co do chat nay de bieu do luon day du va so sanh da chieu
+        if len(city_candidates) < 2:
+            fallback_sql = """
+                SELECT dl.city, COUNT(*) as cnt
+                FROM fact_measurement fm
+                JOIN dim_location dl ON dl.location_key = fm.location_key
+                JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+                WHERE LOWER(dp.parameter_name) = %s
+                GROUP BY dl.city ORDER BY cnt DESC LIMIT 5
+            """
+            for r in self._query(fallback_sql, (target_param,)):
+                if r["city"] not in city_candidates and len(city_candidates) < 4:
+                    city_candidates.append(r["city"])
+
+        # Uu tien thanh pho duoc chon boi nguoi dung tren bo loc cityFilter
+        if city_filter and city_filter != "all":
+            if city_filter in city_candidates:
+                focus_cities = [city_filter] + [c for c in city_candidates if c != city_filter][:3]
+            else:
+                focus_cities = [city_filter] + city_candidates[:3]
         else:
-            focus_cities = default_focus
+            focus_cities = city_candidates[:4]
+
+        if not focus_cities:
+            focus_cities = ["Hà Nội", "Tp. Hồ Chí Minh", "Bangkok", "Chiang Mai"]
 
         trend_rows = self._query(
             f"""
@@ -301,7 +333,7 @@ class DashboardDataService:
             JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
             WHERE LOWER(dp.parameter_name) = %s
               AND dl.city = ANY(%s)
-            GROUP BY {time_expr}, dl.city
+            GROUP BY {group_expr}, {time_expr}, dl.city
             ORDER BY {order_expr} ASC
             """,
             (target_param, focus_cities),
@@ -318,19 +350,28 @@ class DashboardDataService:
             if r["city"] in series_by_city:
                 series_by_city[r["city"]][r["time_label"]] = r["avg_val"]
 
-        trend_series = []
-        city_colors = {
+        palette = ["#f97316", "#3b82f6", "#10b981", "#a855f7", "#06b6d4", "#ec4899", "#eab308", "#14b8a6", "#f43f5e"]
+        known_colors = {
             "Hà Nội": "#f97316",
             "Tp. Hồ Chí Minh": "#3b82f6",
             "Bangkok": "#10b981",
             "Chiang Mai": "#a855f7",
             "Rayong": "#06b6d4",
             "Samut Prakan": "#ec4899",
+            "Samut Sakhon": "#eab308",
+            "Bueng Kan": "#14b8a6",
+            "Sisaket": "#f43f5e",
+            "Kalasin": "#8b5cf6",
+            "Nonthaburi": "#6366f1",
+            "Mae Hong Son": "#64748b",
+            "Lamphun": "#84cc16",
         }
-        for c in focus_cities:
+        trend_series = []
+        for idx, c in enumerate(focus_cities):
+            color = known_colors.get(c, palette[idx % len(palette)])
             trend_series.append({
                 "city": c,
-                "color": city_colors.get(c, "#38bdf8"),
+                "color": color,
                 "data": [series_by_city[c].get(lbl, None) for lbl in time_labels],
             })
 

@@ -302,6 +302,25 @@
       padding: 12px;
     }
 
+    .sub-box::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+
+    .sub-box::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 4px;
+    }
+
+    .sub-box::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.35);
+      border-radius: 4px;
+    }
+
+    .sub-box::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.6);
+    }
+
     .sub-box-title {
       font-size: 11.5px;
       font-weight: 600;
@@ -1219,16 +1238,16 @@
         <!-- Anomaly and Clusters list -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <!-- Anomalies Table -->
-          <div class="sub-box" style="overflow-x:hidden;">
+          <div class="sub-box" style="overflow-x:auto;">
             <div class="sub-box-title">Dị thường cảm biến & Ô nhiễm đột biến</div>
-            <table class="dark-table" style="table-layout:fixed;width:100%;">
+            <table class="dark-table" style="min-width:440px;">
               <thead>
                 <tr>
-                  <th style="width:23%;">Thời gian</th>
-                  <th style="width:29%;">Trạm</th>
-                  <th style="width:16%;">Thông số</th>
-                  <th style="width:18%;">Giá trị</th>
-                  <th style="width:14%;text-align:center;">Trạng thái</th>
+                  <th style="min-width:80px;">Thời gian</th>
+                  <th style="min-width:125px;">Trạm</th>
+                  <th style="min-width:65px;">Thông số</th>
+                  <th style="min-width:75px;">Giá trị</th>
+                  <th style="min-width:85px;text-align:center;">Trạng thái</th>
                 </tr>
               </thead>
               <tbody id="anomalyTableBody"></tbody>
@@ -1236,15 +1255,15 @@
           </div>
 
           <!-- K-Means Clusters Table -->
-          <div class="sub-box" style="overflow-x:hidden;">
+          <div class="sub-box" style="overflow-x:auto;">
             <div class="sub-box-title">Phân cụm ô nhiễm trạm quan trắc (K-Means)</div>
-            <table class="dark-table" style="table-layout:fixed;width:100%;">
+            <table class="dark-table" style="min-width:380px;">
               <thead>
                 <tr>
-                  <th style="width:36%;">Trạm quan trắc</th>
-                  <th style="width:24%;">Đô thị</th>
-                  <th style="width:26%;">Cụm K-Means</th>
-                  <th style="width:14%;text-align:right;">AQI TB</th>
+                  <th style="min-width:130px;">Trạm quan trắc</th>
+                  <th style="min-width:85px;">Đô thị</th>
+                  <th style="min-width:95px;">Cụm K-Means</th>
+                  <th style="min-width:65px;text-align:right;">AQI TB</th>
                 </tr>
               </thead>
               <tbody id="clusterTableBody"></tbody>
@@ -1545,11 +1564,11 @@
         const badgeCls = isHigh ? 'status-warn' : 'status-watch';
         return `
           <tr>
-            <td style="color:#cbd5e1;font-size:10.5px;">${a.time}</td>
-            <td style="font-weight:500;" title="${a.station}">${a.station}</td>
-            <td style="color:#94a3b8;">${a.param}</td>
-            <td style="color:${valColor};font-weight:700;">${a.value}</td>
-            <td style="text-align:center;"><span class="status-badge ${badgeCls}">${a.status}</span></td>
+            <td style="color:#cbd5e1;font-size:11px;white-space:nowrap;">${a.time}</td>
+            <td style="font-weight:500;white-space:nowrap;">${a.station}</td>
+            <td style="color:#94a3b8;white-space:nowrap;">${a.param}</td>
+            <td style="color:${valColor};font-weight:700;white-space:nowrap;">${a.value}</td>
+            <td style="text-align:center;white-space:nowrap;"><span class="status-badge ${badgeCls}">${a.status}</span></td>
           </tr>
         `;
       }).join('');
@@ -1557,10 +1576,10 @@
       const clBody = document.getElementById('clusterTableBody');
       clBody.innerHTML = (data.forecast_alerts.clusters || []).slice(0, 5).map(cl => `
         <tr>
-          <td style="font-weight:500;" title="${cl.location_name}">${cl.location_name}</td>
-          <td style="color:#94a3b8;">${cl.city}</td>
-          <td><span style="color:#38bdf8;font-weight:600;">${cl.cluster_label}</span></td>
-          <td style="font-weight:700;color:#ffffff;text-align:right;">${cl.avg_aqi}</td>
+          <td style="font-weight:500;white-space:nowrap;">${cl.location_name}</td>
+          <td style="color:#94a3b8;white-space:nowrap;">${cl.city}</td>
+          <td style="white-space:nowrap;"><span style="color:#38bdf8;font-weight:600;">${cl.cluster_label}</span></td>
+          <td style="font-weight:700;color:#ffffff;text-align:right;white-space:nowrap;">${cl.avg_aqi}</td>
         </tr>
       `).join('');
     }
