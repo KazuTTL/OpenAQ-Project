@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIR QUALITY MONITORING - Việt Nam</title>
+  <title>AIR QUALITY MONITORING - Đông Nam Á (Ưu tiên Việt Nam)</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -47,7 +49,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 12px 22px;
-      background: rgba(11, 19, 36, 0.92);
+      background: rgba(11, 19, 36, 0.94);
       border-bottom: 1px solid var(--border-color);
       backdrop-filter: blur(8px);
       gap: 16px;
@@ -74,7 +76,7 @@
     }
 
     .brand-title h1 {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 800;
       letter-spacing: 0.6px;
       color: #ffffff;
@@ -82,7 +84,7 @@
     }
 
     .brand-title span {
-      font-size: 13px;
+      font-size: 12.5px;
       color: #10b981;
       font-weight: 600;
     }
@@ -97,14 +99,14 @@
     .brand-subtitle {
       font-size: 12px;
       color: var(--text-secondary);
-      max-width: 310px;
+      max-width: 320px;
       line-height: 1.4;
     }
 
     .filter-bar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
@@ -172,7 +174,7 @@
     /* MAIN BODY LAYOUT */
     .workspace {
       display: grid;
-      grid-template-columns: 205px 1fr;
+      grid-template-columns: 210px 1fr;
       flex: 1;
       min-height: calc(100vh - 65px);
     }
@@ -236,7 +238,7 @@
 
     .sidebar-footer svg {
       width: 100%;
-      height: 56px;
+      height: 52px;
       margin-bottom: 8px;
       opacity: 0.45;
     }
@@ -255,97 +257,86 @@
     }
 
     .quadrant-card {
-      background: linear-gradient(180deg, rgba(19, 31, 58, 0.95) 0%, rgba(13, 23, 44, 0.95) 100%);
+      background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
     }
 
     .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 10px;
     }
 
     .card-title {
       display: flex;
       align-items: center;
-      gap: 9px;
-      font-size: 15px;
+      gap: 8px;
+      font-size: 14.5px;
       font-weight: 700;
       color: #ffffff;
-    }
-
-    .card-title svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* QUADRANT 1: TONG QUAN CHAT LUONG KHONG KHI */
-    .q1-top-grid {
-      display: grid;
-      grid-template-columns: 1.05fr 1.35fr 1.1fr;
-      gap: 12px;
+      letter-spacing: 0.2px;
     }
 
     .sub-box {
       background: var(--bg-card-inner);
       border: 1px solid rgba(43, 69, 118, 0.55);
-      border-radius: 10px;
+      border-radius: 9px;
       padding: 12px;
     }
 
     .sub-box-title {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
-      color: #cbd5e1;
-      margin-bottom: 10px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
     }
 
-    .sub-box-title small {
-      color: var(--text-secondary);
-      font-weight: 400;
+    /* QUADRANT 1: OVERVIEW */
+    .q1-top-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr 1fr;
+      gap: 10px;
     }
 
     .aqi-hero {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 14px;
-      margin: 8px 0 10px;
+      gap: 12px;
+      padding: 6px 0 10px;
     }
 
     .aqi-face-circle {
-      width: 56px;
-      height: 56px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 3px solid var(--moderate);
-      background: rgba(234, 179, 8, 0.12);
+      background: rgba(234, 179, 8, 0.15);
+      border: 2px solid var(--moderate);
       color: var(--moderate);
       flex-shrink: 0;
     }
 
-    .aqi-score-block {
-      text-align: left;
-    }
-
     .aqi-big-num {
-      font-size: 42px;
+      font-size: 38px;
       font-weight: 800;
       line-height: 1;
       color: var(--moderate);
     }
 
     .aqi-status-text {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       margin-top: 3px;
       color: var(--moderate);
@@ -359,11 +350,10 @@
       padding-top: 8px;
     }
 
-    /* Group list */
     .group-list {
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 6px;
     }
 
     .group-row {
@@ -380,8 +370,8 @@
     }
 
     .dot {
-      width: 11px;
-      height: 11px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       flex-shrink: 0;
     }
@@ -391,22 +381,21 @@
       font-weight: 500;
     }
 
-    /* Right column stacked boxes */
     .q1-right-stack {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .stat-mini-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .stat-icon-circle {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -427,34 +416,33 @@
     }
 
     .stat-main-val {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       color: #ffffff;
     }
 
     .stat-main-val small {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-secondary);
       font-weight: 600;
     }
 
     .stat-sub-val {
-      font-size: 11.5px;
+      font-size: 11px;
       color: #10b981;
       margin-top: 2px;
     }
 
-    /* Q1 Bottom Grid */
     .q1-bottom-grid {
       display: grid;
       grid-template-columns: 1.25fr 1fr;
-      gap: 12px;
+      gap: 10px;
     }
 
     .pollutant-bars-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 7px;
     }
 
     .p-bar-row {
@@ -471,7 +459,7 @@
     }
 
     .p-bar-track {
-      height: 9px;
+      height: 8px;
       background: rgba(255, 255, 255, 0.06);
       border-radius: 999px;
       overflow: hidden;
@@ -489,12 +477,11 @@
       color: #e2e8f0;
     }
 
-    /* Scale Box */
     .scale-segments {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 4px;
-      margin-top: 14px;
+      margin-top: 10px;
     }
 
     .scale-seg {
@@ -502,25 +489,92 @@
     }
 
     .scale-seg-bar {
-      height: 11px;
-      border-radius: 3px;
-      margin-bottom: 6px;
+      height: 7px;
+      border-radius: 999px;
+      margin-bottom: 4px;
     }
 
     .scale-seg-num {
-      font-size: 10px;
-      font-weight: 700;
-      color: #cbd5e1;
-    }
-
-    .scale-seg-lbl {
-      font-size: 10px;
-      margin-top: 2px;
+      font-size: 9.5px;
+      color: var(--text-muted);
       font-weight: 600;
     }
 
-    /* QUADRANT 2: XU HUONG THEO THOI GIAN */
-    .header-controls {
+    .scale-seg-lbl {
+      font-size: 9.5px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    /* SO SANH VIET NAM VS THAI LAN */
+    .country-compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .country-card {
+      background: rgba(21, 34, 63, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 9px;
+      padding: 10px 12px;
+    }
+
+    .country-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .country-flag-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .country-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .country-pill.vn {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .country-pill.th {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .country-metric-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      padding: 3px 0;
+    }
+
+    .country-metric-row span {
+      color: var(--text-secondary);
+    }
+
+    .country-metric-row strong {
+      color: #f1f5f9;
+    }
+
+    /* QUADRANT 2: TRENDS */
+    .controls-row {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -531,22 +585,23 @@
       background: var(--bg-card-inner);
       border: 1px solid var(--border-color);
       border-radius: 7px;
-      overflow: hidden;
+      padding: 2px;
     }
 
     .btn-toggle {
       background: transparent;
       border: none;
       color: var(--text-secondary);
-      padding: 5px 10px;
-      font-size: 11.5px;
+      font-size: 11px;
       font-family: inherit;
+      padding: 4px 9px;
+      border-radius: 5px;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
     }
 
     .btn-toggle.active {
-      background: var(--accent-blue);
+      background: #2563eb;
       color: #ffffff;
       font-weight: 600;
     }
@@ -571,78 +626,110 @@
 
     .chart-canvas {
       width: 100%;
-      height: 170px;
+      height: 165px;
     }
 
-    /* QUADRANT 3: THEO VI TRI */
+    /* QUADRANT 3: THEO VI TRI (MAP & RANKING) */
     .q3-grid {
       display: grid;
-      grid-template-columns: 1.05fr 1.15fr;
+      grid-template-columns: 1.15fr 0.95fr;
       gap: 12px;
       flex: 1;
     }
 
     .map-container {
-      background: radial-gradient(circle at 50% 45%, #162a4f 0%, #0d1830 100%);
+      background: #0b1324;
       border: 1px solid rgba(43, 69, 118, 0.55);
       border-radius: 10px;
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 10px;
-      min-height: 365px;
+      min-height: 380px;
       overflow: hidden;
     }
 
-    .vn-svg-wrap {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .vn-svg-wrap svg {
+    #stationLeafletMap {
       width: 100%;
-      max-height: 300px;
-      transition: transform 0.25s ease;
+      height: 330px;
+      background: #070d19;
+      z-index: 1;
     }
 
     .map-Legend {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 4px 10px;
+      display: flex;
+      justify-content: space-around;
       font-size: 10.5px;
       color: var(--text-secondary);
-      padding-top: 6px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 8px 10px;
+      background: rgba(11, 19, 36, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 2;
     }
 
     .map-legend-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
 
-    .map-zoom-btns {
-      position: absolute;
-      right: 10px;
-      bottom: 62px;
+    /* Leaflet popup customization */
+    .leaflet-popup-content-wrapper {
+      background: #101b33 !important;
+      color: #f1f5f9 !important;
+      border: 1px solid #1e3158 !important;
+      border-radius: 9px !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+      padding: 4px !important;
+    }
+
+    .leaflet-popup-tip {
+      background: #101b33 !important;
+      border: 1px solid #1e3158 !important;
+    }
+
+    .map-popup-card {
+      font-family: inherit;
+      min-width: 180px;
+      font-size: 11.5px;
+    }
+
+    .map-popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+    }
+
+    .map-popup-header strong {
+      font-size: 12px;
+      color: #ffffff;
+      max-width: 140px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .map-popup-body {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
-    .zoom-btn {
-      width: 24px;
-      height: 24px;
-      border-radius: 5px;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid var(--border-color);
-      color: #e2e8f0;
-      font-weight: 700;
-      cursor: pointer;
+    .map-popup-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .map-popup-row span {
+      color: var(--text-secondary);
+    }
+
+    .map-popup-row strong {
+      color: #f1f5f9;
     }
 
     /* Tables */
@@ -668,9 +755,9 @@
 
     .aqi-pill {
       display: inline-block;
-      min-width: 38px;
+      min-width: 36px;
       text-align: center;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 999px;
       font-weight: 700;
       font-size: 11px;
@@ -679,7 +766,7 @@
 
     .status-badge {
       display: inline-block;
-      padding: 3px 9px;
+      padding: 3px 8px;
       border-radius: 6px;
       font-size: 10.5px;
       font-weight: 600;
@@ -701,11 +788,16 @@
       .content-area {
         grid-template-columns: 1fr;
       }
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
-
   <!-- TOP HEADER -->
   <header class="top-header">
     <div class="brand-group">
@@ -717,15 +809,16 @@
       </div>
       <div class="brand-title">
         <h1>AIR QUALITY MONITORING</h1>
-        <span>Việt Nam</span>
+        <span>Đông Nam Á (Ưu tiên Việt Nam)</span>
       </div>
       <div class="brand-divider"></div>
       <p class="brand-subtitle">
-        Giám sát chất lượng không khí theo thời gian thực và phân tích xu hướng tại các thành phố lớn ở Việt Nam
+        Giám sát chất lượng không khí & khí tượng thời gian thực từ 52 trạm thuộc 20 thành phố (OpenAQ v3 & Open-Meteo)
       </p>
     </div>
 
     <div class="filter-bar">
+      <!-- Date Range Display -->
       <div class="filter-pill">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -733,19 +826,35 @@
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-        <span id="filterDateRange">20/10/2026 – 27/10/2026</span>
+        <span id="filterDateRange">28/09/2026 – 28/10/2026</span>
       </div>
 
+      <!-- Cascading Filter 1: Country -->
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <select id="countryFilter" onchange="onCountryChange()">
+          <option value="all">Tất cả quốc gia</option>
+          <option value="VN" selected>Việt Nam (VN)</option>
+          <option value="TH">Thái Lan (TH)</option>
+        </select>
+      </div>
+
+      <!-- Cascading Filter 2: City -->
       <div class="filter-pill">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
           <circle cx="12" cy="10" r="3"></circle>
         </svg>
-        <select id="cityFilter" onchange="reloadDashboard()">
+        <select id="cityFilter" onchange="onCityChange()">
           <option value="all">Tất cả thành phố</option>
         </select>
       </div>
 
+      <!-- Cascading Filter 3: Station -->
       <div class="filter-pill">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path>
@@ -759,6 +868,7 @@
         </select>
       </div>
 
+      <!-- Filter 4: Pollutant -->
       <div class="filter-pill">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"></path>
@@ -766,7 +876,7 @@
           <path d="M7 16h10"></path>
         </svg>
         <select id="paramFilter" onchange="reloadDashboard()">
-          <option value="all">Tất cả chất ô nhiễm</option>
+          <option value="all">Tất cả thông số</option>
           <option value="pm25">PM2.5</option>
           <option value="pm10">PM10</option>
           <option value="no2">NO2</option>
@@ -776,6 +886,21 @@
         </select>
       </div>
 
+      <!-- Auto Refresh Select -->
+      <div class="filter-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <select id="autoRefreshSelect" onchange="setupAutoRefresh()">
+          <option value="0">Tự làm mới: Tắt</option>
+          <option value="30">Tự làm mới: 30s</option>
+          <option value="60">Tự làm mới: 1 phút</option>
+          <option value="300">Tự làm mới: 5 phút</option>
+        </select>
+      </div>
+
+      <!-- Last Updated & Refresh -->
       <div class="last-updated">
         <div>
           <div style="color:#64748b;">Cập nhật lần cuối</div>
@@ -815,7 +940,7 @@
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
             <circle cx="12" cy="10" r="3"></circle>
           </svg>
-          <span>Theo vị trí</span>
+          <span>Bản đồ & Vị trí</span>
         </div>
         <div class="nav-item" onclick="switchSection('forecast', this)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -823,7 +948,7 @@
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
-          <span>Dự báo & cảnh báo</span>
+          <span>Dự báo & ML Cụm</span>
         </div>
       </nav>
 
@@ -855,7 +980,7 @@
         <div class="q1-top-grid">
           <!-- Box 1: AQI hien tai -->
           <div class="sub-box">
-            <div class="sub-box-title">AQI hiện tại <small>(toàn quốc)</small></div>
+            <div class="sub-box-title">AQI trung bình <small>(theo bộ lọc)</small></div>
             <div class="aqi-hero">
               <div class="aqi-face-circle" id="aqiFaceCircle">
                 <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2">
@@ -875,7 +1000,7 @@
 
           <!-- Box 2: Nhom muc o nhiem -->
           <div class="sub-box">
-            <div class="sub-box-title">Nhóm mức ô nhiễm</div>
+            <div class="sub-box-title">Phân bố mức độ ô nhiễm</div>
             <div class="group-list" id="pollutionGroupsList"></div>
           </div>
 
@@ -891,14 +1016,14 @@
                   </svg>
                 </div>
                 <div>
-                  <div class="stat-main-val" id="activeStationsText">12 <small>/ 12</small></div>
-                  <div class="stat-sub-val" id="activeStationsPct">(100%)</div>
+                  <div class="stat-main-val" id="activeStationsText">38 <small>/ 52</small></div>
+                  <div class="stat-sub-val" id="activeStationsPct">(73.1%)</div>
                 </div>
               </div>
             </div>
 
             <div class="sub-box" style="flex:1;">
-              <div class="sub-box-title">Chất ô nhiễm cao nhất <small>(toàn quốc)</small></div>
+              <div class="sub-box-title">Chất ô nhiễm cao nhất</div>
               <div class="stat-mini-row">
                 <div class="stat-icon-circle stat-icon-purple">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -918,12 +1043,12 @@
         <!-- Q1 Bottom Row -->
         <div class="q1-bottom-grid">
           <div class="sub-box">
-            <div class="sub-box-title">Chỉ số AQI theo chất ô nhiễm <small>(trung bình toàn quốc)</small></div>
+            <div class="sub-box-title">Chỉ số AQI theo chất ô nhiễm</div>
             <div class="pollutant-bars-list" id="pollutantBarsList"></div>
           </div>
 
           <div class="sub-box">
-            <div class="sub-box-title">Thang đo chất lượng không khí (AQI)</div>
+            <div class="sub-box-title">Thang đo chất lượng không khí (US EPA)</div>
             <div class="scale-segments">
               <div class="scale-seg">
                 <div class="scale-seg-bar" style="background:#10b981;"></div>
@@ -953,20 +1078,30 @@
             </div>
           </div>
         </div>
+
+        <!-- Q1 Extra Row: VN vs TH Cross-Country Comparison -->
+        <div class="sub-box" id="countryComparisonBox">
+          <div class="sub-box-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>So sánh đối chuẩn: Việt Nam vs Thái Lan</span>
+            <small style="color:#94a3b8;">Dữ liệu lịch sử 30 ngày qua (OpenAQ & Open-Meteo)</small>
+          </div>
+          <div class="country-compare-grid" id="countryCompareGrid">
+            <!-- Dynamic country cards rendered by JS -->
+          </div>
+        </div>
       </section>
 
       <!-- QUADRANT 2: XU HUONG THEO THOI GIAN -->
       <section class="quadrant-card" id="sec-trends">
         <div class="card-header">
           <div class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-              <polyline points="17 6 23 6 23 12"></polyline>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
             </svg>
             <span>Xu hướng theo thời gian</span>
           </div>
 
-          <div class="header-controls">
+          <div class="controls-row">
             <div class="btn-group">
               <button class="btn-toggle active" onclick="setGranularity('hour', this)">Theo giờ</button>
               <button class="btn-toggle" onclick="setGranularity('day', this)">Theo ngày</button>
@@ -988,12 +1123,12 @@
         </div>
 
         <div class="chart-box">
-          <div class="sub-box-title">Bản đồ nhiệt AQI theo giờ <small>(toàn quốc)</small></div>
+          <div class="sub-box-title">Bản đồ nhiệt AQI theo giờ trong ngày</div>
           <div id="hourlyHeatmapChart" class="chart-canvas" style="height:155px;"></div>
         </div>
       </section>
 
-      <!-- QUADRANT 3: THEO VI TRI -->
+      <!-- QUADRANT 3: THEO VI TRI (LEAFLET INTERACTIVE MAP & TOP CITIES) -->
       <section class="quadrant-card" id="sec-locations">
         <div class="card-header">
           <div class="card-title">
@@ -1002,70 +1137,32 @@
               <line x1="8" y1="2" x2="8" y2="18"></line>
               <line x1="16" y1="6" x2="16" y2="22"></line>
             </svg>
-            <span>Theo vị trí</span>
+            <span>Bản đồ quan trắc & Xếp hạng đô thị</span>
           </div>
         </div>
 
         <div class="q3-grid">
-          <!-- Vietnam SVG Map -->
+          <!-- Leaflet Interactive Map -->
           <div class="map-container">
-            <div class="vn-svg-wrap">
-              <svg id="vnMapSvg" viewBox="0 0 260 380" xmlns="http://www.w3.org/2000/svg">
-                <!-- Mainland Vietnam stylized regions -->
-                <path d="M65,24 L95,18 L122,28 L135,50 L125,75 L105,92 L95,112 L112,138 L138,168 L156,202 L162,240 L152,276 L128,302 L98,332 L76,345 L66,325 L78,298 L108,274 L126,242 L124,205 L106,172 L82,140 L72,108 L52,82 L44,54 Z"
-                      fill="#1e3a5f" stroke="#38bdf8" stroke-width="1.2" opacity="0.65"/>
-                <!-- Northern Region shading -->
-                <path d="M65,24 L95,18 L122,28 L135,50 L125,75 L105,92 L72,108 L52,82 L44,54 Z"
-                      fill="#eab308" opacity="0.55" stroke="#0f172a" stroke-width="0.8"/>
-                <!-- Red River Delta hotspot -->
-                <path d="M84,52 L118,50 L124,74 L96,86 Z"
-                      fill="#f97316" opacity="0.8" stroke="#0f172a" stroke-width="0.8"/>
-                <!-- Central Region shading -->
-                <path d="M72,108 L105,92 L95,112 L112,138 L138,168 L156,202 L124,205 L106,172 L82,140 Z"
-                      fill="#10b981" opacity="0.65" stroke="#0f172a" stroke-width="0.8"/>
-                <!-- South Central & Highlands -->
-                <path d="M124,205 L156,202 L162,240 L152,276 L126,242 Z"
-                      fill="#10b981" opacity="0.7" stroke="#0f172a" stroke-width="0.8"/>
-                <!-- Southern & Mekong Region -->
-                <path d="M126,242 L152,276 L128,302 L98,332 L76,345 L66,325 L78,298 L108,274 Z"
-                      fill="#eab308" opacity="0.68" stroke="#0f172a" stroke-width="0.8"/>
-
-                <!-- Quan dao Hoang Sa & Truong Sa -->
-                <g fill="#38bdf8" opacity="0.85">
-                  <circle cx="195" cy="155" r="2.2"/><circle cx="202" cy="158" r="1.8"/><circle cx="190" cy="161" r="1.6"/>
-                  <text x="172" y="174" fill="#94a3b8" font-size="8" font-weight="600">QĐ. Hoàng Sa</text>
-
-                  <circle cx="205" cy="285" r="2.2"/><circle cx="214" cy="290" r="1.8"/><circle cx="198" cy="294" r="1.8"/>
-                  <text x="172" y="307" fill="#94a3b8" font-size="8" font-weight="600">QĐ. Trường Sa</text>
-                </g>
-
-                <!-- Dynamic City Pins Layer -->
-                <g id="vnMapPins"></g>
-              </svg>
-
-              <div class="map-zoom-btns">
-                <button class="zoom-btn" onclick="zoomMap(1.15)">+</button>
-                <button class="zoom-btn" onclick="zoomMap(0.87)">−</button>
-              </div>
-            </div>
-
+            <div id="stationLeafletMap"></div>
             <div class="map-Legend">
               <div class="map-legend-item"><span class="dot" style="background:#10b981"></span>Tốt (0–50)</div>
-              <div class="map-legend-item"><span class="dot" style="background:#ef4444"></span>Xấu (151–200)</div>
               <div class="map-legend-item"><span class="dot" style="background:#eab308"></span>Trung bình (51–100)</div>
-              <div class="map-legend-item"><span class="dot" style="background:#a855f7"></span>Rất xấu (201–300)</div>
               <div class="map-legend-item"><span class="dot" style="background:#f97316"></span>Kém (101–150)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#ef4444"></span>Xấu (151–200)</div>
+              <div class="map-legend-item"><span class="dot" style="background:#a855f7"></span>Rất xấu (&gt;200)</div>
             </div>
           </div>
 
           <!-- Top 10 Cities Table -->
           <div class="sub-box" style="overflow-x:auto;">
-            <div class="sub-box-title">Top 10 thành phố có AQI cao nhất</div>
+            <div class="sub-box-title">Top thành phố có AQI cao nhất</div>
             <table class="dark-table">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Thành phố</th>
+                  <th>QG</th>
                   <th>AQI</th>
                   <th>Mức độ</th>
                 </tr>
@@ -1076,7 +1173,7 @@
         </div>
       </section>
 
-      <!-- QUADRANT 4: DU BAO & CANH BAO -->
+      <!-- QUADRANT 4: DU BAO & PHAN CUM HOC MAY (ML) -->
       <section class="quadrant-card" id="sec-forecast">
         <div class="card-header">
           <div class="card-title">
@@ -1084,41 +1181,58 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span>Dự báo & cảnh báo</span>
+            <span>Dự báo Random Forest & Phân cụm K-Means</span>
           </div>
         </div>
 
         <div class="chart-box">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <div class="sub-box-title" style="margin-bottom:0;">Dự báo ngắn hạn (PM2.5)</div>
+            <div class="sub-box-title" style="margin-bottom:0;">Dự báo ngắn hạn PM2.5 (kèm dải tin cậy 95%)</div>
             <select class="mini-select" id="forecastCitySelect" onchange="reloadDashboard()">
               <option value="Hà Nội">Hà Nội</option>
-              <option value="TP. HCM">TP. HCM</option>
-              <option value="Biên Hòa">Biên Hòa</option>
-              <option value="Bắc Ninh">Bắc Ninh</option>
-              <option value="Hải Phòng">Hải Phòng</option>
-              <option value="Đà Nẵng">Đà Nẵng</option>
+              <option value="Tp. Hồ Chí Minh">Tp. Hồ Chí Minh</option>
+              <option value="Bangkok">Bangkok</option>
+              <option value="Chiang Mai">Chiang Mai</option>
+              <option value="Rayong">Rayong</option>
             </select>
           </div>
-          <div id="forecastChart" class="chart-canvas" style="height:150px;"></div>
+          <div id="forecastChart" class="chart-canvas" style="height:140px;"></div>
         </div>
 
-        <div class="sub-box" style="overflow-x:auto;">
-          <div class="sub-box-title">Các điểm bất thường</div>
-          <table class="dark-table">
-            <thead>
-              <tr>
-                <th>Thời gian</th>
-                <th>Trạm</th>
-                <th>Thông số</th>
-                <th>Giá trị đo được</th>
-                <th>Ngưỡng</th>
-                <th>Mức độ</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody id="anomalyTableBody"></tbody>
-          </table>
+        <!-- Anomaly and Clusters list -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <!-- Anomalies Table -->
+          <div class="sub-box" style="overflow-x:auto;">
+            <div class="sub-box-title">Dị thường cảm biến & Ô nhiễm đột biến</div>
+            <table class="dark-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Trạm</th>
+                  <th>Thông số</th>
+                  <th>Giá trị</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="anomalyTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- K-Means Clusters Table -->
+          <div class="sub-box" style="overflow-x:auto;">
+            <div class="sub-box-title">Phân cụm ô nhiễm trạm quan trắc (K-Means)</div>
+            <table class="dark-table">
+              <thead>
+                <tr>
+                  <th>Trạm quan trắc</th>
+                  <th>Đô thị</th>
+                  <th>Cụm K-Means</th>
+                  <th>AQI TB</th>
+                </tr>
+              </thead>
+              <tbody id="clusterTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -1126,27 +1240,26 @@
   </div>
 
   <script>
-    let currentGranularity = 'hour';
-    let mapZoom = 1.0;
     let trendChartInstance = null;
     let heatmapChartInstance = null;
     let forecastChartInstance = null;
+    let leafletMapInstance = null;
+    let leafletMarkersLayer = null;
+
+    let currentGranularity = 'hour';
     let filtersInitialized = false;
+    let cachedFilterData = null;
+    let autoRefreshTimer = null;
 
-    function zoomMap(factor) {
-      mapZoom = Math.min(1.6, Math.max(0.8, mapZoom * factor));
-      document.getElementById('vnMapSvg').style.transform = `scale(${mapZoom})`;
-    }
-
-    function setGranularity(gran, btn) {
-      currentGranularity = gran;
+    function setGranularity(g, btn) {
+      currentGranularity = g;
       document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       reloadDashboard();
     }
 
     function switchSection(sec, navEl) {
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
       navEl.classList.add('active');
 
       const mainGrid = document.getElementById('mainGrid');
@@ -1170,10 +1283,78 @@
         if (trendChartInstance) trendChartInstance.resize();
         if (heatmapChartInstance) heatmapChartInstance.resize();
         if (forecastChartInstance) forecastChartInstance.resize();
-      }, 60);
+        if (leafletMapInstance) leafletMapInstance.invalidateSize();
+      }, 80);
+    }
+
+    function setupAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+      const intervalSec = parseInt(document.getElementById('autoRefreshSelect').value, 10);
+      if (intervalSec > 0) {
+        autoRefreshTimer = setInterval(() => {
+          reloadDashboard();
+        }, intervalSec * 1000);
+      }
+    }
+
+    function onCountryChange() {
+      const country = document.getElementById('countryFilter').value;
+      const citySel = document.getElementById('cityFilter');
+      const stSel = document.getElementById('stationFilter');
+
+      // Update City options based on selected country
+      citySel.innerHTML = '<option value="all">Tất cả thành phố</option>';
+      if (cachedFilterData && cachedFilterData.cities_by_country) {
+        let cityList = [];
+        if (country === 'all') {
+          Object.values(cachedFilterData.cities_by_country).forEach(arr => {
+            cityList.push(...arr);
+          });
+          cityList = [...new Set(cityList)].sort();
+        } else {
+          cityList = cachedFilterData.cities_by_country[country] || [];
+        }
+        cityList.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          citySel.appendChild(opt);
+        });
+      }
+
+      // Reset Station filter
+      stSel.innerHTML = '<option value="all">Tất cả trạm</option>';
+      reloadDashboard();
+    }
+
+    function onCityChange() {
+      const city = document.getElementById('cityFilter').value;
+      const stSel = document.getElementById('stationFilter');
+
+      stSel.innerHTML = '<option value="all">Tất cả trạm</option>';
+      if (cachedFilterData && cachedFilterData.stations_by_city) {
+        let stList = [];
+        if (city === 'all') {
+          // Keep all stations for the selected country
+          stList = cachedFilterData.stations || [];
+        } else {
+          stList = cachedFilterData.stations_by_city[city] || [];
+        }
+        stList.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          stSel.appendChild(opt);
+        });
+      }
+      reloadDashboard();
     }
 
     async function reloadDashboard() {
+      const country = document.getElementById('countryFilter').value;
       const city = document.getElementById('cityFilter').value;
       const station = document.getElementById('stationFilter').value;
       const param = document.getElementById('paramFilter').value;
@@ -1181,6 +1362,7 @@
       const fcCity = document.getElementById('forecastCitySelect').value;
 
       const qs = new URLSearchParams({
+        country,
         city,
         station,
         param,
@@ -1189,30 +1371,52 @@
         forecast_city: fcCity,
       });
 
-      const resp = await fetch(`/api/dashboard-data?${qs.toString()}`);
-      const data = await resp.json();
-      renderDashboard(data);
+      try {
+        const resp = await fetch(`/api/dashboard-data?${qs.toString()}`);
+        const data = await resp.json();
+        renderDashboard(data);
+      } catch (err) {
+        console.error('Loi tai du lieu dashboard:', err);
+      }
     }
 
     function renderDashboard(data) {
-      // 1. Filters
+      cachedFilterData = data.filters;
+
+      // 1. Khoi tao Filter ban dau neu chua
       if (!filtersInitialized) {
         const citySel = document.getElementById('cityFilter');
+        citySel.innerHTML = '<option value="all">Tất cả thành phố</option>';
         data.filters.cities.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c;
           opt.textContent = c;
           citySel.appendChild(opt);
         });
+
         const stSel = document.getElementById('stationFilter');
+        stSel.innerHTML = '<option value="all">Tất cả trạm</option>';
         data.filters.stations.forEach(s => {
           const opt = document.createElement('option');
           opt.value = s;
           opt.textContent = s;
           stSel.appendChild(opt);
         });
+
+        // Forecast city options
+        const fcSel = document.getElementById('forecastCitySelect');
+        fcSel.innerHTML = '';
+        data.filters.cities.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          if (c === 'Hà Nội') opt.selected = true;
+          fcSel.appendChild(opt);
+        });
+
         filtersInitialized = true;
       }
+
       document.getElementById('filterDateRange').textContent = data.filters.date_range;
       document.getElementById('topUpdatedAt').textContent = data.filters.updated_at;
 
@@ -1260,6 +1464,40 @@
         `;
       }).join('');
 
+      // Cross-Country Comparison Cards (VN vs TH)
+      const cmp = ov.country_comparison || {};
+      const vn = cmp['VN'] || { total_stations: 5, avg_aqi: 94, avg_pm25: 39.3, avg_temp: 27.5, avg_hum: 79.2, unhealthy_pct: 15.8 };
+      const th = cmp['TH'] || { total_stations: 33, avg_aqi: 37, avg_pm25: 16.8, avg_temp: 27.8, avg_hum: 80.1, unhealthy_pct: 1.2 };
+
+      const cmpGrid = document.getElementById('countryCompareGrid');
+      cmpGrid.innerHTML = `
+        <div class="country-card">
+          <div class="country-card-header">
+            <div class="country-flag-badge">
+              <span>🇻🇳 Việt Nam</span>
+            </div>
+            <span class="country-pill vn">5 Trạm (Hà Nội, TP.HCM)</span>
+          </div>
+          <div class="country-metric-row"><span>AQI Trung bình:</span> <strong style="color:#f97316;">${vn.avg_aqi} (Kém)</strong></div>
+          <div class="country-metric-row"><span>Bụi mịn PM2.5:</span> <strong>${vn.avg_pm25} µg/m³</strong></div>
+          <div class="country-metric-row"><span>Tỷ lệ giờ ô nhiễm (&gt;100):</span> <strong style="color:#f87171;">${vn.unhealthy_pct}%</strong></div>
+          <div class="country-metric-row"><span>Nhiệt độ & Độ ẩm:</span> <strong>${vn.avg_temp}°C | ${vn.avg_hum}%</strong></div>
+        </div>
+
+        <div class="country-card">
+          <div class="country-card-header">
+            <div class="country-flag-badge">
+              <span>🇹🇭 Thái Lan</span>
+            </div>
+            <span class="country-pill th">33 Trạm (18 Thành phố)</span>
+          </div>
+          <div class="country-metric-row"><span>AQI Trung bình:</span> <strong style="color:#10b981;">${th.avg_aqi} (Tốt)</strong></div>
+          <div class="country-metric-row"><span>Bụi mịn PM2.5:</span> <strong>${th.avg_pm25} µg/m³</strong></div>
+          <div class="country-metric-row"><span>Tỷ lệ giờ ô nhiễm (&gt;100):</span> <strong style="color:#10b981;">${th.unhealthy_pct}%</strong></div>
+          <div class="country-metric-row"><span>Nhiệt độ & Độ ẩm:</span> <strong>${th.avg_temp}°C | ${th.avg_hum}%</strong></div>
+        </div>
+      `;
+
       // 3. Quadrant 2: Trends & Heatmap
       const trendParamLabel = document.getElementById('trendParamSelect').selectedOptions[0].text;
       const unitLabel = (trendParamLabel === 'PM2.5' || trendParamLabel === 'PM10') ? 'µg/m³' : 'ppm';
@@ -1267,37 +1505,104 @@
       renderTrendChart(data.trends);
       renderHeatmapChart(data.trends.heatmap);
 
-      // 4. Quadrant 3: Map & Top 10 Cities
-      renderVietnamMapPins(data.locations.all_cities);
+      // 4. Quadrant 3: Leaflet Map & Top 10 Cities
+      renderLeafletMap(data.overview.station_markers || [], data.filters.selected_country, data.filters.selected_city);
       const top10Body = document.getElementById('top10CitiesBody');
       top10Body.innerHTML = data.locations.top10_cities.map(c => `
         <tr>
           <td style="color:#94a3b8;font-weight:600;">${c.rank}</td>
           <td style="font-weight:600;">${c.city}</td>
+          <td><span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.08);color:#94a3b8;">${c.country_code}</span></td>
           <td><span class="aqi-pill" style="background:${c.color};">${c.aqi}</span></td>
           <td style="color:${c.color};font-weight:600;">${c.category}</td>
         </tr>
       `).join('');
 
-      // 5. Quadrant 4: Forecast & Anomalies
+      // 5. Quadrant 4: Forecast & Anomalies & Clusters
       renderForecastChart(data.forecast_alerts);
+
       const anomBody = document.getElementById('anomalyTableBody');
-      anomBody.innerHTML = data.forecast_alerts.anomalies.slice(0, 5).map(a => {
+      anomBody.innerHTML = (data.forecast_alerts.anomalies || []).slice(0, 5).map(a => {
         const isHigh = a.status === 'Cảnh báo';
         const valColor = isHigh ? '#ef4444' : '#eab308';
         const badgeCls = isHigh ? 'status-warn' : 'status-watch';
         return `
           <tr>
-            <td style="color:#cbd5e1;">${a.time}</td>
-            <td style="font-weight:500;">${a.station}</td>
+            <td style="color:#cbd5e1;font-size:10.5px;">${a.time}</td>
+            <td style="font-weight:500;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.station}</td>
             <td>${a.param}</td>
             <td style="color:${valColor};font-weight:700;">${a.value}</td>
-            <td style="color:#94a3b8;">${a.threshold}</td>
-            <td style="color:${valColor};font-weight:600;">${a.severity}</td>
             <td><span class="status-badge ${badgeCls}">${a.status}</span></td>
           </tr>
         `;
       }).join('');
+
+      const clBody = document.getElementById('clusterTableBody');
+      clBody.innerHTML = (data.forecast_alerts.clusters || []).slice(0, 5).map(cl => `
+        <tr>
+          <td style="font-weight:500;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cl.location_name}</td>
+          <td style="color:#94a3b8;">${cl.city}</td>
+          <td><span style="color:#38bdf8;font-weight:600;">${cl.cluster_label}</span></td>
+          <td style="font-weight:700;color:#ffffff;">${cl.avg_aqi}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderLeafletMap(markers, selectedCountry, selectedCity) {
+      if (!leafletMapInstance) {
+        // Initialize map with default center on VIETNAM (16.0, 107.5, zoom 6)
+        leafletMapInstance = L.map('stationLeafletMap', {
+          zoomControl: true,
+          attributionControl: false,
+        }).setView([16.04, 107.5], 6);
+
+        // Dark matter tiles from CartoDB
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 18,
+          subdomains: 'abcd',
+        }).addTo(leafletMapInstance);
+
+        leafletMarkersLayer = L.layerGroup().addTo(leafletMapInstance);
+      }
+
+      leafletMarkersLayer.clearLayers();
+
+      markers.forEach(m => {
+        const circle = L.circleMarker([m.lat, m.lon], {
+          radius: 7,
+          fillColor: m.color,
+          color: '#ffffff',
+          weight: 1.2,
+          opacity: 0.9,
+          fillOpacity: 0.85,
+        });
+
+        const popupContent = `
+          <div class="map-popup-card">
+            <div class="map-popup-header">
+              <strong>${m.name}</strong>
+              <span class="map-popup-badge">${m.country}</span>
+            </div>
+            <div class="map-popup-body">
+              <div class="map-popup-row"><span>Đô thị:</span> <strong>${m.city}</strong></div>
+              <div class="map-popup-row"><span>AQI:</span> <strong style="color:${m.color}">${m.aqi} (${m.category})</strong></div>
+              <div class="map-popup-row"><span>Bụi PM2.5:</span> <strong>${m.pm25} µg/m³</strong></div>
+              <div class="map-popup-row"><span>Thời tiết:</span> <strong>${m.temp}°C | ${m.humidity}%</strong></div>
+            </div>
+          </div>
+        `;
+        circle.bindPopup(popupContent);
+        leafletMarkersLayer.addLayer(circle);
+      });
+
+      // Pan and zoom according to country filter
+      if (selectedCountry === 'VN') {
+        leafletMapInstance.setView([16.04, 107.5], 6);
+      } else if (selectedCountry === 'TH') {
+        leafletMapInstance.setView([14.5, 100.8], 6);
+      } else {
+        leafletMapInstance.setView([15.2, 104.2], 5);
+      }
     }
 
     function renderTrendChart(trends) {
@@ -1345,7 +1650,7 @@
           textStyle: { color: '#f1f5f9', fontSize: 11 },
           formatter: p => `${hm.cities[p.value[1]]} (${hm.hours[p.value[0]]}): <b>AQI ${p.value[2]}</b>`,
         },
-        grid: { top: 8, left: 64, right: 48, bottom: 22 },
+        grid: { top: 8, left: 68, right: 48, bottom: 22 },
         xAxis: {
           type: 'category',
           data: hm.hours,
@@ -1361,7 +1666,7 @@
         },
         visualMap: {
           min: 20,
-          max: 220,
+          max: 200,
           calculable: false,
           orient: 'vertical',
           right: 0,
@@ -1379,37 +1684,6 @@
           itemStyle: { borderColor: '#101b33', borderWidth: 1.5, borderRadius: 2 },
         }],
       }, true);
-    }
-
-    function renderVietnamMapPins(cities) {
-      const g = document.getElementById('vnMapPins');
-      // Chuyen doi lat (8.5..23.5) va lon (102..110) sang toa do SVG (0..260, 0..380)
-      const calloutCities = new Set(['Hà Nội', 'Đà Nẵng', 'TP. HCM']);
-      let html = '';
-      cities.forEach(c => {
-        const x = Math.round(45 + ((c.lon - 102.0) / 8.0) * 145);
-        const y = Math.round(350 - ((c.lat - 8.5) / 15.0) * 325);
-        html += `
-          <g>
-            <circle cx="${x}" cy="${y}" r="8" fill="${c.color}" opacity="0.28"/>
-            <circle cx="${x}" cy="${y}" r="4.2" fill="${c.color}" stroke="#0f172a" stroke-width="1.2">
-              <title>${c.city}: AQI ${c.aqi} (${c.category})</title>
-            </circle>
-          </g>
-        `;
-        if (calloutCities.has(c.city)) {
-          const offsetX = c.city === 'Hà Nội' ? 18 : 14;
-          const offsetY = c.city === 'Hà Nội' ? -10 : 4;
-          html += `
-            <g>
-              <line x1="${x}" y1="${y}" x2="${x + offsetX}" y2="${y + offsetY}" stroke="#cbd5e1" stroke-width="0.9"/>
-              <text x="${x + offsetX + 4}" y="${y + offsetY - 2}" fill="#e2e8f0" font-size="10.5" font-weight="700">${c.city}</text>
-              <text x="${x + offsetX + 4}" y="${y + offsetY + 12}" fill="${c.color}" font-size="13" font-weight="800">${c.aqi}</text>
-            </g>
-          `;
-        }
-      });
-      g.innerHTML = html;
     }
 
     function renderForecastChart(fc) {
@@ -1480,6 +1754,7 @@
       if (trendChartInstance) trendChartInstance.resize();
       if (heatmapChartInstance) heatmapChartInstance.resize();
       if (forecastChartInstance) forecastChartInstance.resize();
+      if (leafletMapInstance) leafletMapInstance.invalidateSize();
     });
 
     reloadDashboard();

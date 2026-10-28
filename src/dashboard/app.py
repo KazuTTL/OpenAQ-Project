@@ -47,6 +47,7 @@ class DashboardDataService:
 
     def get_dashboard_payload(
         self,
+        country_filter: str = "all",
         city_filter: str = "all",
         station_filter: str = "all",
         param_filter: str = "all",
@@ -54,22 +55,73 @@ class DashboardDataService:
         granularity: str = "hour",
         forecast_city: str = "Hà Nội",
     ) -> Dict[str, Any]:
-        # 1. Danh sach bo loc
+        # 1. Danh sach dia diem phuc vu Cascading Filters
         locations = self._query(
-            "SELECT DISTINCT city, location_name, latitude, longitude FROM dim_location ORDER BY city, location_name"
+            """
+            SELECT DISTINCT 
+                COALESCE(country_code, 'VN') AS country_code,
+                city, 
+                location_name, 
+                latitude, 
+                longitude 
+            FROM dim_location 
+            WHERE location_name IS NOT NULL
+            ORDER BY country_code, city, location_name
+            """
         )
-        cities = sorted(list({r["city"] for r in locations if r.get("city")}))
-        stations = sorted(list({r["location_name"] for r in locations if r.get("location_name")}))
 
-        # Dieu kien loc chung
+        countries_set = sorted(list({r["country_code"] for r in locations if r.get("country_code")}))
+        cities_by_country: Dict[str, List[str]] = {}
+        stations_by_city: Dict[str, List[str]] = {}
+
+        for r in locations:
+            c_code = r["country_code"]
+            city = r["city"]
+            st_name = r["location_name"]
+
+            if c_code not in cities_by_country:
+                cities_by_country[c_code] = []
+            if city and city not in cities_by_country[c_code]:
+                cities_by_country[c_code].append(city)
+
+            if city:
+                if city not in stations_by_city:
+                    stations_by_city[city] = []
+                if st_name and st_name not in stations_by_city[city]:
+                    stations_by_city[city].append(st_name)
+
+        # Danh sach phẳng theo country filter
+        if country_filter and country_filter != "all":
+            active_cities = cities_by_country.get(country_filter, [])
+        else:
+            active_cities = sorted(list({r["city"] for r in locations if r.get("city")}))
+
+        if city_filter and city_filter != "all":
+            active_stations = stations_by_city.get(city_filter, [])
+        elif country_filter and country_filter != "all":
+            active_stations = sorted(list({
+                r["location_name"] for r in locations 
+                if r.get("country_code") == country_filter and r.get("location_name")
+            }))
+        else:
+            active_stations = sorted(list({r["location_name"] for r in locations if r.get("location_name")}))
+
+        # Dieu kien loc chung cho du lieu
         where_clauses = ["fm.aqi IS NOT NULL"]
         query_params: List[Any] = []
+
+        if country_filter and country_filter != "all":
+            where_clauses.append("dl.country_code = %s")
+            query_params.append(country_filter)
+
         if city_filter and city_filter != "all":
             where_clauses.append("dl.city = %s")
             query_params.append(city_filter)
+
         if station_filter and station_filter != "all":
             where_clauses.append("dl.location_name = %s")
             query_params.append(station_filter)
+
         if param_filter and param_filter != "all":
             where_clauses.append("LOWER(dp.parameter_name) = LOWER(%s)")
             query_params.append(param_filter)
@@ -82,6 +134,9 @@ class DashboardDataService:
             SELECT
                 COUNT(DISTINCT fm.location_key) AS active_stations,
                 ROUND(AVG(fm.aqi)::numeric, 0)::int AS avg_aqi,
+                ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.value END)::numeric, 1)::float AS avg_pm25,
+                ROUND(AVG(fm.temperature)::numeric, 1)::float AS avg_temp,
+                ROUND(AVG(fm.humidity)::numeric, 1)::float AS avg_hum,
                 MAX(dt.datetime_utc) AS latest_utc,
                 MIN(dt.local_date) AS min_date,
                 MAX(dt.local_date) AS max_date
@@ -104,12 +159,12 @@ class DashboardDataService:
         else:
             updated_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-        min_date_str = kpi["min_date"].strftime("%d/%m/%Y") if kpi.get("min_date") else "20/10/2026"
-        max_date_str = kpi["max_date"].strftime("%d/%m/%Y") if kpi.get("max_date") else "27/10/2026"
+        min_date_str = kpi["min_date"].strftime("%d/%m/%Y") if kpi.get("min_date") else "28/09/2026"
+        max_date_str = kpi["max_date"].strftime("%d/%m/%Y") if kpi.get("max_date") else "28/10/2026"
 
-        # 3. Chi so AQI theo tung chat o nhiem
+        # 3. Chi so AQI theo tung chat o nhiem (co ap dung filter quoc gia/thanh pho)
         pollutant_rows = self._query(
-            """
+            f"""
             SELECT
                 UPPER(dp.parameter_name) AS code,
                 dp.display_name,
@@ -119,9 +174,10 @@ class DashboardDataService:
             FROM fact_measurement fm
             JOIN dim_location dl ON dl.location_key = fm.location_key
             JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
-            WHERE fm.aqi IS NOT NULL
+            WHERE {where_sql}
             GROUP BY dp.parameter_name, dp.display_name, dp.unit
-            """
+            """,
+            tuple(query_params),
         )
         pollutant_map = {r["code"]: r for r in pollutant_rows}
         ordered_codes = ["PM25", "PM10", "NO2", "SO2", "CO", "O3"]
@@ -153,21 +209,30 @@ class DashboardDataService:
             "aqi": 78,
         }
 
-        # 4. Xep hang Top thanh pho & Nhom muc o nhiem theo thanh pho
+        # 4. Xep hang Top thanh pho & Nhom muc o nhiem
+        city_where = ["dp.parameter_name = 'pm25'"]
+        city_params = []
+        if country_filter and country_filter != "all":
+            city_where.append("dl.country_code = %s")
+            city_params.append(country_filter)
+        city_where_sql = " AND ".join(city_where)
+
         city_aqi_rows = self._query(
-            """
+            f"""
             SELECT
                 dl.city,
+                dl.country_code,
                 AVG(dl.latitude)::float AS lat,
                 AVG(dl.longitude)::float AS lon,
                 ROUND(AVG(fm.aqi)::numeric, 0)::int AS aqi
             FROM fact_measurement fm
             JOIN dim_location dl ON dl.location_key = fm.location_key
             JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
-            WHERE dp.parameter_name = 'pm25'
-            GROUP BY dl.city
+            WHERE {city_where_sql}
+            GROUP BY dl.city, dl.country_code
             ORDER BY aqi DESC
-            """
+            """,
+            tuple(city_params),
         )
         groups_counter = {
             "Tốt": 0,
@@ -184,6 +249,7 @@ class DashboardDataService:
             ranked_cities.append({
                 "rank": idx,
                 "city": r["city"],
+                "country_code": r.get("country_code", "VN"),
                 "lat": r["lat"],
                 "lon": r["lon"],
                 "aqi": c_aqi,
@@ -209,9 +275,18 @@ class DashboardDataService:
             time_expr = "TO_CHAR(dt.datetime_utc + INTERVAL '7 hours', 'DD/MM HH24:00')"
             order_expr = "MIN(dt.datetime_utc)"
 
-        focus_cities = ["Hà Nội", "TP. HCM", "Đà Nẵng", "Hải Phòng"]
-        if city_filter and city_filter != "all" and city_filter not in focus_cities:
-            focus_cities = [city_filter] + focus_cities[:3]
+        # Chon danh sach thanh pho tieu bieu tuy theo quoc gia
+        if country_filter == "VN":
+            default_focus = ["Hà Nội", "Tp. Hồ Chí Minh"]
+        elif country_filter == "TH":
+            default_focus = ["Bangkok", "Chiang Mai", "Rayong", "Samut Prakan"]
+        else:
+            default_focus = ["Hà Nội", "Tp. Hồ Chí Minh", "Bangkok", "Chiang Mai"]
+
+        if city_filter and city_filter != "all" and city_filter not in default_focus:
+            focus_cities = [city_filter] + default_focus[:3]
+        else:
+            focus_cities = default_focus
 
         trend_rows = self._query(
             f"""
@@ -234,7 +309,6 @@ class DashboardDataService:
         for r in trend_rows:
             if r["time_label"] not in time_labels:
                 time_labels.append(r["time_label"])
-        # Gioi han 36 diem gan nhat cho muot ma
         if len(time_labels) > 36:
             time_labels = time_labels[-36:]
 
@@ -246,9 +320,11 @@ class DashboardDataService:
         trend_series = []
         city_colors = {
             "Hà Nội": "#f97316",
-            "TP. HCM": "#3b82f6",
-            "Đà Nẵng": "#10b981",
-            "Hải Phòng": "#a855f7",
+            "Tp. Hồ Chí Minh": "#3b82f6",
+            "Bangkok": "#10b981",
+            "Chiang Mai": "#a855f7",
+            "Rayong": "#06b6d4",
+            "Samut Prakan": "#ec4899",
         }
         for c in focus_cities:
             trend_series.append({
@@ -275,7 +351,7 @@ class DashboardDataService:
             """,
             (focus_cities,),
         )
-        heatmap_cities = list(reversed(focus_cities))  # Hien thi Ha Noi o hang tren cung
+        heatmap_cities = list(reversed(focus_cities))
         heatmap_hours = [f"{h}h" for h in range(24)]
         heatmap_matrix = []
         hm_lookup = {(r["city"], int(r["hour"])): int(r["avg_aqi"]) for r in heatmap_rows}
@@ -285,7 +361,7 @@ class DashboardDataService:
                 heatmap_matrix.append([h, y_idx, val])
 
         # 7. Du bao ngan han (PM2.5) cho thanh pho duoc chon
-        fc_city = forecast_city if forecast_city in cities else (cities[0] if cities else "Hà Nội")
+        fc_city = forecast_city if forecast_city in active_cities else (active_cities[0] if active_cities else "Hà Nội")
         hist_rows = self._query(
             """
             SELECT
@@ -314,7 +390,6 @@ class DashboardDataService:
             last_date = hist_rows[-1]["local_date"]
             last_val = float(hist_rows[-1]["pm25_val"] or 45.0)
             std_val = float(hist_rows[-1]["pm25_std"] or 8.0)
-            # Noi diem cuoi cua Thuc te voi diem dau cua Du bao
             forecast_vals[-1] = last_val
             lower_band[-1] = last_val
             upper_band[-1] = last_val
@@ -329,7 +404,7 @@ class DashboardDataService:
                 lower_band.append(round(max(5.0, pred - band), 1))
                 upper_band.append(round(pred + band, 1))
 
-        # 8. Bang Cac diem bat thuong (Anomalies)
+        # 8. Cac diem bat thuong (Anomalies)
         anomaly_rows = self._query(
             """
             SELECT
@@ -374,13 +449,84 @@ class DashboardDataService:
             """
         )
 
-        total_stations = len(stations)
-        active_cnt = int(kpi.get("active_stations") or total_stations)
+        # 10. Toa do va trang thai tram phuc vu Ban do Geospatial Leaflet Map
+        station_marker_rows = self._query(
+            """
+            SELECT 
+                dl.location_name,
+                dl.city,
+                dl.country_code,
+                dl.latitude::float AS lat,
+                dl.longitude::float AS lon,
+                ROUND(AVG(fm.aqi)::numeric, 0)::int AS aqi,
+                ROUND(AVG(fm.temperature)::numeric, 1)::float AS temp,
+                ROUND(AVG(fm.humidity)::numeric, 1)::float AS humidity,
+                ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.value END)::numeric, 1)::float AS pm25
+            FROM dim_location dl
+            JOIN fact_measurement fm ON fm.location_key = dl.location_key
+            JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+            WHERE dl.latitude IS NOT NULL AND dl.longitude IS NOT NULL
+            GROUP BY dl.location_name, dl.city, dl.country_code, dl.latitude, dl.longitude
+            ORDER BY dl.country_code, dl.city
+            """
+        )
+        station_markers = []
+        for r in station_marker_rows:
+            st_aqi = int(r["aqi"] or 50)
+            meta = get_aqi_meta(st_aqi)
+            station_markers.append({
+                "name": r["location_name"],
+                "city": r["city"],
+                "country": r["country_code"],
+                "lat": r["lat"],
+                "lon": r["lon"],
+                "aqi": st_aqi,
+                "category": meta["label"],
+                "color": meta["color"],
+                "temp": r["temp"] if r["temp"] is not None else 27.5,
+                "humidity": r["humidity"] if r["humidity"] is not None else 80.0,
+                "pm25": r["pm25"] if r["pm25"] is not None else 25.0,
+            })
+
+        # 11. Thong ke so sanh Viet Nam vs Thai Lan
+        country_compare_rows = self._query(
+            """
+            SELECT 
+                dl.country_code,
+                COUNT(DISTINCT dl.location_key) AS total_stations,
+                ROUND(AVG(fm.aqi)::numeric, 0)::int AS avg_aqi,
+                ROUND(AVG(CASE WHEN dp.parameter_name = 'pm25' THEN fm.value END)::numeric, 1)::float AS avg_pm25,
+                ROUND(AVG(fm.temperature)::numeric, 1)::float AS avg_temp,
+                ROUND(AVG(fm.humidity)::numeric, 1)::float AS avg_hum,
+                ROUND(COUNT(CASE WHEN fm.aqi > 100 THEN 1 END) * 100.0 / NULLIF(COUNT(fm.measurement_key), 0), 1)::float AS unhealthy_pct
+            FROM fact_measurement fm
+            JOIN dim_location dl ON dl.location_key = fm.location_key
+            JOIN dim_parameter dp ON dp.parameter_key = fm.parameter_key
+            GROUP BY dl.country_code
+            ORDER BY dl.country_code
+            """
+        )
+        country_comparison = {
+            r["country_code"]: r for r in country_compare_rows
+        }
+
+        total_stations_cnt = len(active_stations)
+        active_cnt = int(kpi.get("active_stations") or total_stations_cnt)
 
         return {
             "filters": {
-                "cities": cities,
-                "stations": stations,
+                "selected_country": country_filter,
+                "selected_city": city_filter,
+                "selected_station": station_filter,
+                "countries": [
+                    {"code": "all", "name": "Tất cả quốc gia"},
+                    {"code": "VN", "name": "Việt Nam (VN)"},
+                    {"code": "TH", "name": "Thái Lan (TH)"},
+                ],
+                "cities_by_country": cities_by_country,
+                "stations_by_city": stations_by_city,
+                "cities": active_cities,
+                "stations": active_stations,
                 "date_range": f"{min_date_str} – {max_date_str}",
                 "updated_at": updated_str,
             },
@@ -392,11 +538,13 @@ class DashboardDataService:
                 "pollution_groups": pollution_groups,
                 "active_stations": {
                     "active": active_cnt,
-                    "total": total_stations,
-                    "pct": round(active_cnt * 100.0 / max(1, total_stations), 1),
+                    "total": total_stations_cnt,
+                    "pct": round(active_cnt * 100.0 / max(1, total_stations_cnt), 1),
                 },
                 "top_pollutant": top_pollutant,
                 "pollutant_bars": pollutant_bars,
+                "station_markers": station_markers,
+                "country_comparison": country_comparison,
             },
             "trends": {
                 "labels": time_labels,
@@ -410,6 +558,7 @@ class DashboardDataService:
             "locations": {
                 "top10_cities": ranked_cities[:10],
                 "all_cities": ranked_cities,
+                "station_markers": station_markers,
             },
             "forecast_alerts": {
                 "city": fc_city,
@@ -451,6 +600,7 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
             try:
                 qs = parse_qs(parsed.query)
                 payload = self.service.get_dashboard_payload(
+                    country_filter=qs.get("country", ["all"])[0],
                     city_filter=qs.get("city", ["all"])[0],
                     station_filter=qs.get("station", ["all"])[0],
                     param_filter=qs.get("param", ["all"])[0],
