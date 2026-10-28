@@ -39,6 +39,7 @@ class DashboardDataService:
     def _query(self, sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
         conn = psycopg2.connect(**self.db_config)
         try:
+            conn.set_client_encoding('UTF8')
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(sql, params)
                 return [dict(r) for r in cur.fetchall()]
@@ -422,14 +423,41 @@ class DashboardDataService:
         )
         anomalies = []
         for r in anomaly_rows:
+            raw_param = str(r.get("thong_so", "")).upper()
+            if raw_param in ("PM25", "PM2.5"):
+                param_name = "PM2.5"
+            elif raw_param in ("PM10",):
+                param_name = "PM10"
+            elif "HUMIDITY" in raw_param:
+                param_name = "Độ ẩm"
+            elif "TEMP" in raw_param:
+                param_name = "Nhiệt độ"
+            elif "UM003" in raw_param:
+                param_name = "Hạt 0.3µ"
+            elif "PM1" in raw_param:
+                param_name = "PM1.0"
+            else:
+                param_name = raw_param
+
+            # Chuẩn hóa trạng thái không bị lỗi charset/dấu hỏi chấm
+            raw_status_str = str(r.get("trang_thai", ""))
+            is_warn = (r.get("aqi") is not None and r["aqi"] >= 150) or (
+                "c" in raw_status_str.lower() and "b" in raw_status_str.lower()
+            )
+            clean_status = "Cảnh báo" if is_warn else "Theo dõi"
+
+            raw_val_str = str(r.get("gia_tri_do_duoc", "")).replace("ug/m3", "µg/m³")
+            if "HUMIDITY" in raw_param and "%" not in raw_val_str:
+                raw_val_str = f"{round(float(r.get('raw_value', 0)), 1)} %"
+
             anomalies.append({
                 "time": r["thoi_gian"],
                 "station": r["tram"],
-                "param": "PM2.5" if r["thong_so"] == "PM25" else r["thong_so"],
-                "value": r["gia_tri_do_duoc"].replace("ug/m3", "µg/m³"),
-                "threshold": r["nguong"].replace("ug/m3", "µg/m³"),
-                "severity": r["muc_do"],
-                "status": r["trang_thai"],
+                "param": param_name,
+                "value": raw_val_str,
+                "threshold": str(r.get("nguong", "")).replace("ug/m3", "µg/m³"),
+                "severity": "Cao" if is_warn else "Trung bình",
+                "status": clean_status,
             })
 
         # 9. Phan cum K-Means tram quan trac
